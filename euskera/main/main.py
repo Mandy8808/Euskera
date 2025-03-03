@@ -1,0 +1,150 @@
+# euskera v1.0
+# main file
+
+import sys
+import os
+import numpy as np
+import numexpr as ne
+
+# Check if pyFFTW is available
+try:
+    import pyfftw
+    pyfftwOpt = True
+except ImportError:
+    pyfftw = None
+    pyfftwOpt = False
+
+# Get the parent directory dynamically
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(parent_dir)
+
+# Import modules from subfolders
+
+import tools.tools as to
+import models.models as md
+import main.grids as gd
+import main.potential as pt
+import plots.plot_tools as pl
+import main.evolut_routines as ev
+import save.save_data as sv
+
+###################################################################################################
+
+
+########### Main function
+#############################################################################
+def evolve(model,
+           model_parameters,
+           field_components=1,
+           salva_data_update=None,
+           simulation_parameters_update=None,
+           info=False):
+    
+    ######### CHECKING IF THE MODEL EXIST IN PALET OF MODEL
+    model_used = md.Models(modelo_name=model, parameters_update=model_parameters, info=info)
+    
+    ######### DEFAULT CONFIGURATIONS
+    # Default simulation parameters           
+    simulation_parameters = {
+                            "lambda_value": 0,
+                            "num_threads": 1,
+                            "gridlength": 10,
+                            "resol": 128,
+                            "step_factor": 1.,
+                            "t0": 0,
+                            "tmax": 1,
+                            "rmax": 7.6,
+                            "Plim": 5.6,
+                            "cmass": 0,
+                            "plott0": False,
+                            "Boverlap": True,
+                            "info" : False
+                                  }
+    # añadir check the las componentes y el numero de componentes
+    
+    if simulation_parameters_update:  # updating the default simulation parameters
+        simulation_parameters = to.update_simulation_parameters(simulation_parameters_update,
+                                     simulation_parameters)
+    # Default save_data parameters 
+    salva_data = {
+        "format": "npz",
+        "address": "Data",
+        "save_number": 10,
+        "data_save" : {
+            "grid": True,
+            "save_rho": False,
+            "save_psi": False,
+            "save_phi": True,
+            "save_plane": True,
+            "save_energies": None,
+            "save_line": True}
+        }
+    if salva_data_update:
+        salva_data = to.update_simulation_parameters(salva_data_update, salva_data)
+            
+    ######################### Check if pyFFTW is available
+    if not pyfftwOpt:
+        print("WARNING: pyFFTW not available, using NumPy instead.")
+    
+    ######################### Set the number of threads for NumExpr parallelization
+    num_threads = simulation_parameters.get('num_threads')
+    ne.set_num_threads(num_threads)
+    
+    ######################### Generating the save objects asociated to data_save
+    data_save = salva_data.get("data_save")
+    address = salva_data.get("address")
+    formt = salva_data.get("format")
+    data_save_obj = sv.data_Objgenerator(data_save=data_save, address=address, format=formt)
+ 
+    ######################### Initialize wavefunction and density
+    (xarray, yarray, zarray, distarray), (psi, rho_i) = model_used.call_model(field_components=field_components,
+                                                                            simulation_parameters=simulation_parameters)
+    
+    ######################### POTENTIAL at t=0
+    # Compute real/complex Fourier-space grids
+    gridlength = simulation_parameters.get("gridlength")
+    resol = simulation_parameters.get("resol")
+    _, rkarray2 = gd.KGrid(gridlength=gridlength, resol=resol, realspace=True)
+    _, karray2 = gd.KGrid(gridlength=gridlength, resol=resol)
+    
+    # Compute initial potential field
+    cmass = simulation_parameters.get("cmass")
+    (phisp, rho, obj) = pt.Upotential(field_components, rho_i, distarray, rkarray2, num_threads,
+                                    cmass=cmass, resol=resol)  
+    # obj -> [rfft_rho, irfft_phi] 
+    
+    # Optional: Plot initial density and potential
+    plott0 = simulation_parameters.get("plott0")
+    if plott0:
+        pl.ShowPlaneProf(rho, xarray[:, 0, 0], yarray[0, :, 0], Z=None, indX=None, indY=None, indZ=None)
+        pl.ShowPlaneProf(phisp, xarray[:, 0, 0], yarray[0, :, 0], Z=None, indX=None, indY=None, indZ=None)
+    ################################################################################################################
+    
+    ########################## Saving
+    energ = None
+    data = ([xarray, yarray, zarray], rho, psi, phisp, energ)
+    sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
+    ################################################################################################################
+    
+    ######################### Compute time step parameters
+    tmax = simulation_parameters.get("tmax")
+    step_factor = simulation_parameters.get("step_factor")
+    save_number = salva_data.get("save_number")
+    ht, its_per_save, num_steps = to.dtime(tmax, gridlength, resol, step_factor, save_number)
+    ################################################################################################################
+    
+    ######################### Initialize simulation fields and parameters
+    lambda_value = simulation_parameters.get("lambda_value")
+    halfstepornot = True  # True for a half step False for a full step
+    fields = [phisp, psi, rho]
+    param = [num_steps, ht, halfstepornot, its_per_save, num_threads, cmass, resol, lambda_value]
+    distDat = [distarray, karray2, rkarray2]
+
+    # Evolve the system
+    rho, phisp = ev.PKP(field_components, fields, param, distDat, num_steps, obj, data_save_obj=data_save_obj, info=info)
+    ################################################################################################################
+    return None
+
+
+
+
