@@ -111,7 +111,7 @@ class Visualization:
         
         frame = ax[0].imshow(perf2d, cmap=cmap, extent=(xminE, xmaxE, yminE, ymaxE), norm=norm, origin='lower', zorder=1)
         
-        perfmax = max(perf)
+        perfmax = max(perf) if np.any(perf) else 1  # Avoid division by zero
         frame1, = ax[1].plot(xi, perf/perfmax, ls=' ', lw=.5, c='k', zorder=1)
         
         color = perf/perfmax
@@ -121,7 +121,7 @@ class Visualization:
         # Compute text position
         x_pos = xlim[0] + (xlim[1] - xlim[0]) / 2
         y_pos = ylim[0] + (ylim[1] - ylim[0]) / 2 + 0.4
-        tframe = ax[0].text(x_pos, y_pos, s=r'time = $%3.2f$' % t0, c='white', fontsize='small')
+        tframe = ax[0].text(x_pos, y_pos, s=r'time = $%3.1f$' % t0, c='white', fontsize='small')
         
         if text:
             ax[0].text(xminE+x_pos/2, y_pos, s=text, c='white', fontsize='small')
@@ -211,7 +211,7 @@ class Visualization:
         
         frame1.set_ydata(perf1d)
         
-        perfmax = max(perf1d)
+        perfmax = max(perf1d) if np.any(perf1d) else 1  # Avoid division by zero
         color = perf1d/perfmax
         
         ls = pl.colored_line(xi, perf1d/perfmax, color, ax[1], add=False, linewidth=2, cmap=cmap, zorder=10)
