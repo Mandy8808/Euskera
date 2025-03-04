@@ -9,17 +9,32 @@
 
 <img align="right" width="25%" src="galleries/image.png">
 
-This repository is a compilation of the lectures: "Gravitation, Numerical Methods, and Python" given at the Workshop of Cosmology and Gravitation, Zacatecas 2024, organized by the Cosmology and Gravitation group at the [Unidad Académica de Física](https://fisica.uaz.edu.mx) affiliated with the [Autonomous University of Zacatecas](https://www.uaz.edu.mx). The lectures are focused on finding numerical solutions to the GR field equations associated with a static and spherically symmetric spacetime line element, capable of describing compact objects such as neutron and boson stars.
+This repository presents a numerical Python code based on the public code [PyUltraLight](https://github.com/auckland-cosmo/PyUltraLight), which corresponds to a time-space evolution of the Schrodinger-Poisson system. The *Euskera* code generalizes the previous one by introducing a self-interaction term (which corresponds to the Gross-Pitaevskii-Poisson equation) and includes the possibility of working with multi-frequency Proca stars and boson stars.
 
-https://github.com/auckland-cosmo/PyUltraLight
+In order for the code to work correctly, the following packages are required:
 
-The published materials include a main presentation, as well as some Mathematica and Jupyter notebooks:
+Main codec
+- [NumPy](https://numpy.org)
+- [NumExpr](https://numexpr.readthedocs.io/en/latest/user_guide.html)
+- [Numba](https://numba.pydata.org)
+- [pyFFTW](https://pyfftw.readthedocs.io/en/latest/#introduction)
 
-- [Mathematica Nothebook](/Mathematica_Notebook/)
+Plotting routines:
+- [Matplotlib](https://matplotlib.org).
 
-- [Jupyter Nothebook](/Jupyter_Notebook/)
+By default, the code saves the output data in “npz” format, but [h5py](https://www.h5py.org) is also available if the respective packages are installed. Other packages such as os, sys, and multiprocessing are used, but they are included in Python versions higher than 2.6.
 
-In addition, we include a folder with some equations of state ([EoSs](/EoS)) and a package [stars](/stars/) with the TOV and EKG systems of equations. Other tools, and resources used in the lectures are also include.
+The published materials include:
+
+- [Main module](/euskera/)
+
+- [Illustrative examples](/examples/)
+
+- [Numerical radial profiles](/Soliton%20Profile%20Files/)
+
+Additionally, we include ….
+
+If our code contributes to a project that leads to a publication, please acknowledge our work by citing it.
 
 ## Contact
-You can contact me via email: arestrada(at)fisica.uaz.edu.mx / arestrada(at)fisica.ugto.mx
+You can contact via email: alberto.diez(at)fisica.ugto.mx / arestrada(at)fisica.uaz.edu.mx / arestrada(at)fisica.ugto.mx
