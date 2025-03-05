@@ -16,7 +16,7 @@
 
 This repository presents a numerical Python code based on the public code [PyUltraLight](https://github.com/auckland-cosmo/PyUltraLight), which corresponds to a time-space evolution of the Schrödinger-Poisson system. The *Euskera* code generalizes the previous one by introducing a self-interaction term (which corresponds to the Gross-Pitaevskii-Poisson equation) and includes the possibility of working with multi-frequency Proca stars and boson stars. The details of the mathematical procedure are presented and discussed in ...
 
-<hr style="border: 0.1px solid #ccc;">
+<hr style="border:.2px solid gray">
 
 > [!IMPORTANT]
 In order for the code to work correctly, the following packages are required:
