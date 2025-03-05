@@ -1,3 +1,8 @@
+<p align="center" width="100%">
+    <img width="90%" src="galleries/encabezado.png">
+</p>
+
+
 <p float="left">
 <a href = "LICENSE"> <img src="https://img.shields.io/badge/GNU GP license-green" alt="alt text"></a>
 <a href = "https://www.python.org"> <img src="https://img.shields.io/badge/Language-Python-blue" alt="alt text"> </a>
