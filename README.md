@@ -33,7 +33,8 @@ To generate a video:
 By default, the code saves the output data in “npz” format, but [h5py](https://www.h5py.org) is also available if the respective packages are installed. Other packages such as os, sys, and multiprocessing are used, but they are included in Python versions higher than 2.6.
 
 
-> [!NOTE](The published materials include:)
+> [!NOTE]
+The published materials include:
 
 - [Main module](/euskera/)
 
