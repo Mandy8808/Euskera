@@ -5,6 +5,7 @@ import sys
 import os
 import numpy as np
 import numexpr as ne
+import time
 
 # Check if pyFFTW is available
 try:
@@ -33,15 +34,15 @@ import save.save_data as sv
 
 ########### Main function
 #############################################################################
-def evolve(model,
-           model_parameters,
+def evolve(model_parameters,
            field_components=1,
            salva_data_update=None,
            simulation_parameters_update=None,
            info=False):
     
     ######### CHECKING IF THE MODEL EXIST IN PALET OF MODEL
-    model_used = md.Models(modelo_name=model, parameters_update=model_parameters, info=info)
+    #model_used = md.Models(modelo_name=model, parameters_update=model_parameters, info=info)
+    model_used = md.Models(info=info, **model_parameters)
     
     ######### DEFAULT CONFIGURATIONS
     # Default simulation parameters           
@@ -95,11 +96,10 @@ def evolve(model,
     address = salva_data.get("address")
     formt = salva_data.get("format")
     data_save_obj = sv.data_Objgenerator(data_save=data_save, address=address, format=formt)
- 
+    
     ######################### Initialize wavefunction and density
     (xarray, yarray, zarray, distarray), (psi, rho_i) = model_used.call_model(field_components=field_components,
-                                                                            simulation_parameters=simulation_parameters)
-    
+                                                                            parameters_simulation=simulation_parameters)
     ######################### POTENTIAL at t=0
     # Compute real/complex Fourier-space grids
     gridlength = simulation_parameters.get("gridlength")

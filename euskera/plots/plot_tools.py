@@ -43,7 +43,7 @@ def colorBar_and_normaliz(maximo, minimo, cmapStr=False, cmapint=None):
 #############################################################################
 def imagshow2D(data, datl=None, xlim=(-0.45, 0.45), ylim=(-0.45, 0.45), contour=True, imshow=True,
                cmapint=['#050505', '#f0784d'], xlimE=(-1, 1), ylimE=(-1, 1), 
-               levels=4, alpha=0.5, save=False):
+               levels=4, alpha=0.5, save=False, out=False):
     """
     Function to visualize 2D data using contour and imshow.
     """
@@ -81,9 +81,10 @@ def imagshow2D(data, datl=None, xlim=(-0.45, 0.45), ylim=(-0.45, 0.45), contour=
     if save:
         fig.savefig('rho2D.pdf', format='pdf', pad_inches=0.1, dpi=1000, bbox_inches='tight')
     else:
-        plt.show()
+        if not out:
+            plt.show()
     
-    return None
+    return fig, axT
 
 ########### 3D-plot
 #############################################################################

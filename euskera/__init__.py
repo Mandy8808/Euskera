@@ -21,8 +21,8 @@ from .plots.plot_tools import colorBar_and_normaliz, ShowPlaneProf, PlaneProf, P
 
 # Models
 from .models.models import Models
-from .models.soliton_model import Soli_Modelo, InitialSolitonsProf, initsolitonInt, initsoliton
-#from .models.modelo_gaussiana import gaussian, initGaussianInt, GaussSolProf
+from .models.soliton_model import Soli_Model, InitialSolitonsProf, initsolitonInt, initsoliton
+from .models.gaussiana_model import Gaussiana_Model, gaussian, initGaussianInt
 
 # Define available imports
 __all__ = [
@@ -45,6 +45,8 @@ __all__ = [
     'colorBar_and_normaliz', 'ShowPlaneProf', 'PlaneProf', 'Plot3DCorrProf', 'imagshow2D', 'colored_line'
     
     # Models
-    'Models', 'Soli_Modelo', 'InitialSolitonsProf', 'initsolitonInt', 'initsoliton',
-    # 'gaussian', 'initGaussianInt', 'GaussSolProf'
+    #soliton
+    'Models', 'Soli_Model', 'InitialSolitonsProf', 'initsolitonInt', 'initsoliton',
+    # guassiana
+    'Gaussiana_Model', 'gaussian', 'initGaussianInt'
 ]

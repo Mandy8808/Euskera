@@ -6,7 +6,7 @@ import os
 import numpy as np
 import numexpr as ne
 
-from numba import njit, prange  
+from numba import njit, prange, set_num_threads
 
 try:
     import pyfftw
@@ -26,7 +26,7 @@ import tools.tools as to
 
 ########### Class for the solitonic model
 #############################################################################
-class Soli_Modelo():
+class Soli_Model():
     """ 
     Class used for modeling solitons
     """
@@ -35,150 +35,99 @@ class Soli_Modelo():
     pyfftwOpt = pyfftwOpt  # Store FFTW availability as a class attribute
     
     def __init__(self, parameters_mod):
-        self.parameters_mod = parameters_mod   
+        self.parameters_mod = parameters_mod
     
-    def SoliIncProf(self, psi, coord, field_components, parameters_simulation):
-        """
-        Computes the initial soliton profiles and updates the wavefunction psi.
-
-        Args:
-            psi (np.ndarray): Initial wavefunction array.
-            coord (list): List containing x, y, and z coordinate arrays.
-            field_components (int): Number of field components.
-            parameters_simulation (list): Simulation parameters.
-
-        Returns:
-            np.ndarray: Updated wavefunction array with soliton profiles.
-        """
-        name_param_by_configuration = {
-            "positions": 3, "velocities": 3, "phases": 1,  "alphas": 1, "dr": 1
-        }
-        name_param_by_components = {
-            "profiles": field_components, "betas": field_components
-            }
+    def validate_parameters(self, field_components):
+        """Validates the input parameters for configuration and component correctness."""
+        param_config = {"positions": 3, "velocities": 3, "phases": 1, "alphas": 1, "dr": 1}
+        param_components = {"profiles": field_components, "betas": field_components}
         
-        modelo_parameters = self.parameters_mod
-        ###################################################################################################
         # Validate configuration parameters
-        for name, expected_quantity in name_param_by_configuration.items():
-            parameter_list = modelo_parameters.get(name, [])
-            for element in parameter_list:  
-                actual_quantity = len(element)
-                if actual_quantity != expected_quantity:
-                    raise ValueError(
-                        f"The parameter '{name}' must have {expected_quantity} components, but got {actual_quantity}.")
-
+        for name, expected in param_config.items():
+            for element in self.parameters_mod.get(name, []):
+                if len(element) != expected:
+                    raise ValueError(f"Parameter '{name}' must have {expected} elements, but got {len(element)}.")
+        
         # Validate component parameters
-        for name, expected_quantity in name_param_by_components.items():
-            parameter_list = modelo_parameters.get(name, [])
-            for element in parameter_list:
-                actual_quantity = len(element)
-                if actual_quantity != expected_quantity:
-                    raise ValueError(f"The parameter '{name}' must have {expected_quantity} elements, but got {actual_quantity}.")
-        ###################################################################################################
-        
-        # Extracting simulation parameters
-        Boverlap, Plim, rmax, resol, lambda_value, t0 = parameters_simulation
-        
-        if lambda_value != 0:
-            print("WARNING: The alpha values are fixed to 1 because the scaling property is not true.")
-            modelo_parameters["phases"] = [[1.]]*len(modelo_parameters["phases"])
-        ###################################################################################################
-        
-        # Handle soliton overlap check if enabled
-        if Boverlap:
-            # Check input validity
-            if Plim >= rmax:
-                raise ValueError(f"Plim ({Plim}) must be less than rmax ({rmax}).")
+        for name, expected in param_components.items():
+            for element in self.parameters_mod.get(name, []):
+                if len(element) != expected:
+                    raise ValueError(f"Parameter '{name}' must have {expected} elements, but got {len(element)}.")
     
-            warn = to.overlap(modelo_parameters["positions"], rmax=rmax, warn=0)
-            if warn:
-                print("WARNING: Significant overlap detected between solitons in initial conditions \n")
-        ###################################################################################################
-                
-        # Zip the configuration parameters
-        conf_parameters_name = list(name_param_by_configuration.keys())
-        dat_conf_Parameters = zip(*(modelo_parameters[i] for i in conf_parameters_name))
-        
-        # Zip the component parameters with configuration parameters
-        dat_glob_Parameters = zip(
-            modelo_parameters["profiles"],
-            modelo_parameters["betas"],
-            dat_conf_Parameters
-        )
-        
+    def initialize_wavefunction(self, resol, field_components=None):
+        """Allocates memory for the wavefunction psi."""
         # Create aligned zero-filled arrays for the temporal funct components
         # Use pyFFTW if available, otherwise fallback to NumPy
-        if self.pyfftwOpt:
-            funct = pyfftw.zeros_aligned((resol, resol, resol), dtype='complex128')
-        else:
-            funct = np.zeros((resol, resol, resol), dtype='complex128')
         
-        # Generate the initial soliton profiles
-        xarray, yarray, zarray = coord
-        for comp_profiles, beta_comp_values, conf_param in dat_glob_Parameters:
-            positionCen, comp_veloc, phase, alpha, dr = conf_param
-            for i in range(field_components):  # running by the components
-                psi_i = psi[i]
-                fInt = comp_profiles[i]
-                
-                param = [beta_comp_values[i], phase[0], positionCen, alpha[0]]
-                psi[i] = InitialSolitonsProf(
-                    psi_i, funct, fInt, [xarray, yarray, zarray],
-                    comp_veloc, param, Plim=Plim, t0=t0, delta_x=dr[0],
-                    initsoliton=initsolitonInt
-                )          
+        if field_components:
+            out = pyfftw.zeros_aligned((field_components, resol, resol, resol), dtype='complex128') if self.pyfftwOpt \
+                else np.zeros((field_components, resol, resol, resol), dtype='complex128')
+        else:
+            out = pyfftw.zeros_aligned((resol, resol, resol), dtype='complex128') if self.pyfftwOpt \
+                else np.zeros((resol, resol, resol), dtype='complex128')
+        return out
+
+    def SoliIncProf(self, psi, coord, field_components, parameters_simulation):
+        """Computes the initial soliton profiles and updates psi."""
+        self.validate_parameters(field_components)
+        Boverlap, Plim, rmax, resol, lambda_value, t0, num_threads = parameters_simulation
+        
+        if lambda_value != 0:
+            print("WARNING: Alpha values are fixed to 1 due to scaling constraints.")
+            self.parameters_mod["phases"] = [[1.]] * len(self.parameters_mod["phases"])
+        
+        if Boverlap and Plim >= rmax:
+            raise ValueError(f"Plim ({Plim}) must be less than rmax ({rmax}).")
+        
+        if Boverlap and to.overlap(self.parameters_mod["positions"], rmax=rmax, warn=0):
+            print("WARNING: Significant overlap detected between solitons.")
+        
+        funct = self.initialize_wavefunction(resol)
+        psi = psievaluation(funct, psi, self.parameters_mod,
+                            initsolitonInt, coord, field_components, Plim, t0, num_threads)
         return psi
     
+    
     def PsiInic(self, field_components, parameters_simulation):
-        """
-        Initializes a soliton field in a 3D grid.
-
-        Args:
-            field_components (int): Number of field components.
-            parameters_simulation (dict): Simulation parameters.
-
-        Returns:
-            list: Spatial grids, distance array, wavefunction, and density profile.
-        """
+        """Initializes a soliton field in a 3D grid."""
+        coord, distarray = gd.RealGrid(gridlength=parameters_simulation["gridlength"], resol=parameters_simulation["resol"])
+        psi = self.initialize_wavefunction(parameters_simulation["resol"], field_components)
         
-        # Extract simulation parameters from dictionary
-        Boverlap = parameters_simulation.get("Boverlap", False)
-        Plim = parameters_simulation.get("Plim", 1.0)
-        rmax = parameters_simulation.get("rmax", 1.0)
-        resol = parameters_simulation.get("resol", 128)
-        lambda_value = parameters_simulation.get("lambda_value", 1.0)
-        t0 = parameters_simulation.get("t0", 0.0)
-        gridlength = parameters_simulation.get("gridlength", 1.0)
-        num_threads = parameters_simulation.get("num_threads", 1)
-
-        # Generate spatial grids and distance array
-        [xarray, yarray, zarray], distarray = gd.RealGrid(gridlength=gridlength, resol=resol)
-    
-        # Create aligned zero-filled arrays for Psi components
-        # Use pyFFTW if available, otherwise fallback to NumPy
-        if Soli_Modelo.pyfftwOpt:
-            psi = pyfftw.zeros_aligned((field_components, resol, resol, resol), dtype='complex128')
-        else:
-            psi = np.zeros((field_components, resol, resol, resol), dtype='complex128')
-
-        # Compute the initial soliton profile
-        parameters_simulation2 = [Boverlap, Plim, rmax, resol, lambda_value, t0]
-        coord = [xarray, yarray, zarray]
+        # Generate the initial soliton profiles
+        parameters_simulation2 = [parameters_simulation["Boverlap"], parameters_simulation["Plim"], parameters_simulation["rmax"],
+                                  parameters_simulation["resol"], parameters_simulation["lambda_value"], parameters_simulation["t0"],
+                                  parameters_simulation["num_threads"]]
         psi = self.SoliIncProf(psi, coord, field_components, parameters_simulation2)
-
+        
         # Set the number of threads for parallel execution
-        ne.set_num_threads(num_threads)
-
-        # Compute the density profile for every component
+        ne.set_num_threads(parameters_simulation["num_threads"])
+        # Compute the density profile for every component   
         rho_i = ne.evaluate("real(abs(psi)**2)")
-    
-        return [xarray, yarray, zarray, distarray], [psi, rho_i]
+        return coord + [distarray], [psi, rho_i]
  
 
-########### Extra functions (Outside of the clase)
+########### Auxiliary Functions Outside of the class)
 #############################################################################
-def InitialSolitonsProf(psi, funct, fInt, grid, velocity, param, initsoliton, Plim=5.6,
+
+def psievaluation(funct, psi, params, initsolitonInt, coord, field_components, Plim, t0, num_threads):
+    
+    # Zip the configuration parameters
+    conf_parameters_name = ["positions", "velocities", "phases", "alphas", "dr"]
+    dat_conf_Parameters = zip(*(params[i] for i in conf_parameters_name))
+        
+    # Zip the component parameters with configuration parameters
+    dat_glob_Parameters = zip(params["profiles"], params["betas"], dat_conf_Parameters)
+        
+    set_num_threads(num_threads)
+    for comp_profiles, beta_comp_values, conf_param in dat_glob_Parameters:
+        positionCen, comp_veloc, phase, alpha, dr = conf_param
+        for i in range(field_components): # running by the components
+            param = [beta_comp_values[i], phase[0], positionCen, alpha[0]]
+            psi[i] = InitialSolitonsProf(funct, psi[i], comp_profiles[i],
+                                         coord, comp_veloc, param, Plim=Plim, t0=t0, delta_x=dr[0], initsoliton=initsolitonInt)
+    return psi
+             
+def InitialSolitonsProf(funct, psi, fInt, grid, velocity, param, initsoliton, Plim=5.6,
                         t0=0, delta_x=0.00001):
     """
     Compute the initial soliton profile:
