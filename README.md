@@ -1,4 +1,4 @@
-<p align="center" width="110%">
+<p align="center" width="160%">
     <img width="80%" src="galleries/encabezado.png">
 </p>
 
