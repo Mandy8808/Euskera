@@ -33,6 +33,7 @@ In order for the code to work correctly, the following packages are required:
 
 By default, the code saves the output data in “npz” format, but [h5py](https://www.h5py.org) is also available if the respective packages are installed. Other packages such as os, sys, and multiprocessing are used, but they are included in Python versions higher than 2.6.
 
+---
 
 > [!NOTE]
 The published materials include:
@@ -43,7 +44,7 @@ The published materials include:
 
 > [Numerical radial profiles](/Soliton%20Profile%20Files/)
 
-Additionally, we include some script implementations.
+Additionally, we include some [script](/scripts/) implementations.
 
 If our code contributes to a project that leads to a publication, please acknowledge our work by citing it.
 
