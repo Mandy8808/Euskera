@@ -70,7 +70,7 @@ def centpotetE(rho, distarray, simulation_parameters):
 
 def selfinterCondensateE(rho, phisp, distarray, simulation_parameters):
     dens_Eup = ne.evaluate("real(0.5 * (phisp * rho))")  # notice that phisp have both,
-                                                   # the central and psi contribution
+                                                         # the central and psi contribution
     dens_Eup = np.sum(dens_Eup)
     dens_centE = centpotetE(rho, distarray, simulation_parameters)
     return dens_Eup - dens_centE
