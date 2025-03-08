@@ -5,6 +5,7 @@ from .main.main import evolve
 from .main.evolut_routines import PKP
 from .main.grids import RealGrid, KGrid, meshgrid
 from .main.potential import Upotential
+from .main.conserv_quant import Conserv, Npar, Energ, centpotetE, selfinterCondensateE, selfinterFieldE, kintE, Pi
 
 # Video visualization (optional import)
 from .video.video_make import Visualization
@@ -30,6 +31,7 @@ __all__ = [
     'evolve', 'PKP',
     'RealGrid', 'KGrid', 'meshgrid',
     'Upotential',
+    'Conserv', 'Npar', 'Energ, ''centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi',
     
     # Video visualization
     'Visualization',

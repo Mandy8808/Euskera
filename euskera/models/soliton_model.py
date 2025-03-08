@@ -74,7 +74,7 @@ class Soli_Model():
         
         if lambda_value != 0:
             print("WARNING: Alpha values are fixed to 1 due to scaling constraints.")
-            self.parameters_mod["phases"] = [[1.]] * len(self.parameters_mod["phases"])
+            self.parameters_mod["alphas"] = [[1.]] * len(self.parameters_mod["alphas"])
         
         if Boverlap and Plim >= rmax:
             raise ValueError(f"Plim ({Plim}) must be less than rmax ({rmax}).")

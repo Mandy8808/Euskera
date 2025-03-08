@@ -5,6 +5,7 @@ from .main import evolve
 from .evolut_routines import PKP
 from .grids import RealGrid, KGrid, meshgrid
 from .potential import Upotential
+from .conserv_quant import Conserv, Npar, Energ, centpotetE, selfinterCondensateE, selfinterFieldE, kintE, Pi
 
 # Explicitly define what should be imported when using `from modulo.main import *`
 __all__ = [
@@ -15,5 +16,10 @@ __all__ = [
            'RealGrid', 'KGrid', 'meshgrid',
            
            # initial configuration
-           'Upotential'
+           'Upotential',
+           
+           # conserved
+           'Conserv', 'Npar', 'Energ, ''centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi'
+           
            ]
+

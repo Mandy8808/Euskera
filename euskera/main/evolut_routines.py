@@ -24,13 +24,14 @@ sys.path.append(parent_dir)
 import main.potential as pt
 import tools.tools as to
 import save.save_data as sv
+import main.conserv_quant as cq
 
 ###################################################################################################
 
 ########### Time-evolution function
 #############################################################################
 
-def PKP(field_components, fields, param, distDat, num_steps, obj, data_save_obj, info=False):
+def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulation_parameters, data_save_obj, info=False):
     """
     Time evolution of wavefunction psi using the Schrödinger-Poisson system.
 
@@ -63,8 +64,8 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, data_save_obj,
         fft_psi = pyfftw.builders.fftn(psi, axes=(1, 2, 3), threads=num_threads)
         ifft_funct = pyfftw.builders.ifftn(psi, axes=(1, 2, 3), threads=num_threads)
     else:
-        fft_psi = np.fft.fftn
-        ifft_funct = np.fft.ifftn
+        fft_psi = lambda psi: np.fft.fftn(psi, axes=(1, 2, 3))
+        ifft_funct = lambda psi: np.fft.ifftn(psi, axes=(1, 2, 3))
 
     # Precompute exponential term for k-space evolution
     exp_k = ne.evaluate("exp(-1j * 0.5 * ht * karray2)")
@@ -94,26 +95,15 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, data_save_obj,
             rho = ne.evaluate("sum(rho_i, axis=0)")
             halfstepornot = True
             
-            energ = None
+            # Calculates the energies 
+            cons = {"Numb_Part": True, "Energ": True, "Pi": False, "Ji": False}
+            data = [psi, rho, phisp, distarray, karray2, kvec]
+            cData = cq.Conserv(data, cons, field_components, simulation_parameters, obj=[fft_psi, ifft_funct], method=2)  # method=1
+            
+            energ = cData
             data = ([None, None, None], rho, psi, phisp, energ)
             sv.fdata_save(ti=count, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
             count += 1
- 
-            #plt.plot(rho[:, resol // 2, resol // 2])
-            #plt.show()
-            
-            #[xarray, yarray, zarray], _ = RealGrid(gridlength=20, resol=resol)
-            #ShowPlaneProf(rho, xarray[:, 0, 0], yarray[0, :, 0], Z=None, indX=None, indY=None, indZ=None)
-            #ShowPlaneProf(phisp, xarray[:, 0, 0], yarray[0, :, 0], Z=None, indX=None, indY=None, indZ=None)
-
-            # Next block calculates the energies at each save, not at each timestep.
-            #if (save_options[3]):
-            #    calculate_energies(
-            #        save_options, resol,
-            #        psi, cmass, distarray, Vcell, phisp, karray2, funct,
-            #       fft_psi, ifft_funct,
-            #        egpcmlist, egpsilist, ekandqlist, egylist, mtotlist,
-            #    )
         
         tint = time.time() - tinit
         if info:

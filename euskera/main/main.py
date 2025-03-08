@@ -28,6 +28,7 @@ import main.potential as pt
 import plots.plot_tools as pl
 import main.evolut_routines as ev
 import save.save_data as sv
+import main.conserv_quant as cq
 
 ###################################################################################################
 
@@ -77,7 +78,7 @@ def evolve(model_parameters,
             "save_psi": False,
             "save_phi": True,
             "save_plane": True,
-            "save_energies": None,
+            "save_energies": True,
             "save_line": True}
         }
     if salva_data_update:
@@ -105,7 +106,7 @@ def evolve(model_parameters,
     gridlength = simulation_parameters.get("gridlength")
     resol = simulation_parameters.get("resol")
     _, rkarray2 = gd.KGrid(gridlength=gridlength, resol=resol, realspace=True)
-    _, karray2 = gd.KGrid(gridlength=gridlength, resol=resol)
+    kvec, karray2 = gd.KGrid(gridlength=gridlength, resol=resol)
     
     # Compute initial potential field
     cmass = simulation_parameters.get("cmass")
@@ -120,9 +121,14 @@ def evolve(model_parameters,
         pl.ShowPlaneProf(phisp, xarray[:, 0, 0], yarray[0, :, 0], Z=None, indX=None, indY=None, indZ=None)
     ################################################################################################################
     
+    ########################## Conserved
+    cons = {"Numb_Part": True, "Energ": True, "Pi": False, "Ji": False}
+    data = [psi, rho, phisp, distarray, karray2, kvec]
+    cData = cq.Conserv(data, cons, field_components, simulation_parameters, obj=None, method=2)  # method=1
+    ################################################################################################################
+    
     ########################## Saving
-    energ = None
-    data = ([xarray, yarray, zarray], rho, psi, phisp, energ)
+    data = ([xarray, yarray, zarray], rho, psi, phisp, cData)
     sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
     ################################################################################################################
     
@@ -141,7 +147,9 @@ def evolve(model_parameters,
     distDat = [distarray, karray2, rkarray2]
 
     # Evolve the system
-    rho, phisp = ev.PKP(field_components, fields, param, distDat, num_steps, obj, data_save_obj=data_save_obj, info=info)
+    rho, phisp = ev.PKP(field_components, fields, param, distDat, 
+                        num_steps, obj, kvec, simulation_parameters, 
+                        data_save_obj=data_save_obj, info=info)
     ################################################################################################################
     return None
 
