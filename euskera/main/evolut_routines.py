@@ -31,7 +31,7 @@ import main.conserv_quant as cq
 ########### Time-evolution function
 #############################################################################
 
-def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulation_parameters, data_save_obj, info=False):
+def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulation_parameters, comp_conserv, data_save_obj, info=False):
     """
     Time evolution of wavefunction psi using the Schrödinger-Poisson system.
 
@@ -54,6 +54,7 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
     num_steps, ht, halfstepornot, its_per_save, num_threads, cmass, resol, lambda_value = param
     phisp, psi, rho = fields
     distarray, karray2, rkarray2 = distDat
+    methodEnerg = simulation_parameters["methodEnerg"]
     
     # Select FFT and IFFT functions
     if pyfftwOpt:
@@ -95,10 +96,9 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
             rho = ne.evaluate("sum(rho_i, axis=0)")
             halfstepornot = True
             
-            # Calculates the energies 
-            cons = {"Numb_Part": True, "Energ": True, "Pi": False, "Ji": False}
+            # Calculates the energies
             data = [psi, rho, phisp, distarray, karray2, kvec]
-            cData = cq.Conserv(data, cons, field_components, simulation_parameters, obj=[fft_psi, ifft_funct], method=2)  # method=1
+            cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg)  # method=1
             
             energ = cData
             data = ([None, None, None], rho, psi, phisp, energ)

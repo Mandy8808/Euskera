@@ -39,6 +39,7 @@ def evolve(model_parameters,
            field_components=1,
            salva_data_update=None,
            simulation_parameters_update=None,
+           comp_conserv_update=None,
            info=False):
     
     ######### CHECKING IF THE MODEL EXIST IN PALET OF MODEL
@@ -60,6 +61,7 @@ def evolve(model_parameters,
                             "cmass": 0,
                             "plott0": False,
                             "Boverlap": True,
+                            "methodEnerg": 1,
                             "info" : False
                                   }
     # añadir check the las componentes y el numero de componentes
@@ -83,6 +85,15 @@ def evolve(model_parameters,
         }
     if salva_data_update:
         salva_data = to.update_simulation_parameters(salva_data_update, salva_data)
+        
+    comp_conserv = {
+        "Numb_Part": True,
+        "Energ": True,
+        "Pi": False,
+        "Ji": False
+    }
+    if comp_conserv_update:
+        salva_data = to.update_simulation_parameters(comp_conserv_update, comp_conserv)
             
     ######################### Check if pyFFTW is available
     if not pyfftwOpt:
@@ -122,9 +133,11 @@ def evolve(model_parameters,
     ################################################################################################################
     
     ########################## Conserved
-    cons = {"Numb_Part": True, "Energ": True, "Pi": False, "Ji": False}
+    methodEnerg = simulation_parameters.get("methodEnerg")
     data = [psi, rho, phisp, distarray, karray2, kvec]
-    cData = cq.Conserv(data, cons, field_components, simulation_parameters, obj=None, method=2)  # method=1
+    cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=None, methodEnerg=methodEnerg)
+    if info:
+        print("Initial conserved quantities:", cData)
     ################################################################################################################
     
     ########################## Saving
@@ -148,8 +161,9 @@ def evolve(model_parameters,
 
     # Evolve the system
     rho, phisp = ev.PKP(field_components, fields, param, distDat, 
-                        num_steps, obj, kvec, simulation_parameters, 
-                        data_save_obj=data_save_obj, info=info)
+                        num_steps, obj, kvec, simulation_parameters,
+                        comp_conserv, data_save_obj=data_save_obj,
+                        info=info)
     ################################################################################################################
     return None
 

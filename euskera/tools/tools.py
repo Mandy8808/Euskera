@@ -44,7 +44,12 @@ def update_simulation_parameters(simulation_parameters_update, simulation_parame
         "save_number": int,
         "format": str,
         "address": str,
-        "data_save": dict
+        "data_save": dict,
+        "Numb_Part": bool,
+        "Energ": bool,
+        "Pi": bool,
+        "Ji": bool,
+        "methodEnerg": int
     }
 
     for name, element_update in simulation_parameters_update.items():

@@ -72,5 +72,4 @@ def KGrid(gridlength=10, resol=128, realspace=False):
     
     # Compute squared magnitudes of the k-space vectors
     karray2 = ne.evaluate("kxarray**2 + kyarray**2 + kzarray**2")
-    
     return [kxarray, kyarray, kzarray], karray2
