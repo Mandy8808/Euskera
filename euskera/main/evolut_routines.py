@@ -92,11 +92,10 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
         if (((i + 1) % its_per_save) == 0) and halfstepornot == False:
             # Next if statement ensures that an extra half step is performed at each save point
             psi = ne.evaluate("exp(-1j * 0.5 * ht * phisp) * psi")
-            
-            rho = ne.evaluate("sum(rho_i, axis=0)")
+            rho = ne.evaluate("sum(rho_i, axis=0)")  # rho = np.sum(rho_i, axis=0)
             halfstepornot = True
             
-            # Calculates the energies
+            # Calculate energies and save data
             data = [psi, rho, phisp, distarray, karray2, kvec]
             cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg)  # method=1
             
@@ -105,12 +104,14 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
             sv.fdata_save(ti=count, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
             count += 1
         
+        # Time tracking
         tint = time.time() - tinit
         if info:
             print('cpu time:', tint, '\n')
         ttot += tint
         tinit = time.time()
         
+        # Update progress bar
         to.progressbar(i, num_steps-1, bar_length=20, progress_char='#')
    
     sv.fdata_save(ti=None, data=([None, None, None], None, None, None, None),

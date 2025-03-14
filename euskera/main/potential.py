@@ -56,7 +56,7 @@ def Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=
         rfft_rho, irfft_phi = obj
         
     # Compute FFT of rho = Sum_j |ψ_j(x, tᵢ)|²
-    rho = ne.evaluate("sum(rho_i, axis=0)")
+    rho = np.sum(rho_i, axis=0)  # ne.evaluate("sum(rho_i, axis=0)")
     if not obj:
         if pyfftwOpt:
             rfft_rho = pyfftw.builders.rfftn(rho, axes=(0, 1, 2), threads=num_threads)   # Return a pyfftw.FFTW object representing an n-D real FFT
@@ -83,7 +83,6 @@ def Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=
             phisp = irfft_phi(phik)   # Compute the N-dimensional discrete inverse FFT for real inputphik (i.e.  F^{-1} (-/k^2) F 4pi |psi(\vec{x}, t_i)|^2)
         else:
             print("WARNING: pyFFTW not available, using NumPy instead.")
-            phisp = np.zeros((field_components, resol, resol, resol), dtype='float64')
             phisp = np.fft.irfftn(rho, axes=(0, 1, 2))
     else:
         phisp = irfft_phi(phik)

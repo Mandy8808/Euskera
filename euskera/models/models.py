@@ -177,3 +177,15 @@ def dict_type(name):
         raise ValueError(f"Unknown model. Available models: {list(default_parameters_type.keys())}.")
     
     return dict_prop
+
+def solitonProf(field_components, parameters_sol, simulation_parameters):
+    """
+    Compute the scalar field using the soliton model given a radial profile.
+    """
+    model_used = Models(**parameters_sol)
+    (xarray, yarray, zarray, _), (_, rho_i) = model_used.call_model(field_components=field_components,
+                                                                            parameters_simulation=simulation_parameters)
+    
+    import numexpr as ne
+    rho = ne.evaluate("sum(rho_i, axis=0)")
+    return  (xarray, yarray, zarray), rho

@@ -137,10 +137,10 @@ class Visualization:
         if show:
             plt.show() 
         
-        return ax, frame, frame1, frame2, tframe, cmap
+        return ax, frame, frame1, frame2, tframe, cmap, perfmax
     
     
-    def frame02D(self, data, struc, xlim=None, ylim=None, show=False):
+    def frame02D(self, data, struc, xlim=None, ylim=None, show=False, Npart=None):
         """ 
         Creates the first frame of a 2D plot.
 
@@ -167,8 +167,12 @@ class Visualization:
         ###############################
     
         fig, ax = self.figData
-
+        # perfm = np.max(perf)
         frame, = ax.plot(xi, perf, ls=ls, c=color, lw=lw)
+        
+        if Npart:
+            ax.hlines(Npart, xmin=min(xi), xmax=max(xi), ls='-', lw=1, color='k', alpha=0.5)
+            ax.text(x=min(xi)+1, y=Npart-0.5, s=r'Particle Number', fontsize='small')
 
         # Compute text position
         x_pos = xlim[0] + (xlim[1] - xlim[0]) / 2 if xlim else np.mean(xi) + 1
@@ -196,7 +200,7 @@ class Visualization:
     
     def updateimagshow02D(self, ind, frame, frame1, frame2, tframe,
                         ax, ti, name, name2, array_data, array_data2,
-                        xi, cmap):
+                        xi, cmap, perfmax):
         """ 
         """
         t = ti[ind]
@@ -211,7 +215,7 @@ class Visualization:
         
         frame1.set_ydata(perf1d)
         
-        perfmax = max(perf1d) if np.any(perf1d) else 1  # Avoid division by zero
+        # perfmax = max(perf1d) if np.any(perf1d) else 1  # Avoid division by zero
         color = perf1d/perfmax
         
         ls = pl.colored_line(xi, perf1d/perfmax, color, ax[1], add=False, linewidth=2, cmap=cmap, zorder=10)
@@ -236,17 +240,18 @@ class Visualization:
         ui = array_data[name+'%d'%ind]
 
         # updating axis
+        # uimax = np.max(ui)
         frame.set_ydata(ui)
 
         # updating y-lim
-        ax.set_ylim(min(ui)-min(ui)/8, max(ui)+max(ui)/8)
+        # ax.set_ylim(min(ui)-min(ui)/8, max(ui)+max(ui)/8)
 
         return frame, tframe
 
     def fplot2D(self, n0, grid, array_data, name, struc, xlim=(-1, 1),
                 ylim=(-1, 1), xlimE=(-1, 1), ylimE=(-1, 1), interval=200,
                 cmapint=['#050505', '#f0784d'], array_data2=None, name2=False,
-                show=False, text=None):
+                show=False, text=None, Npart=None):
         """
         Creates a 2D animated plot using time-dependent data.
 
@@ -284,7 +289,7 @@ class Visualization:
         # First frame
         if name2:
             fig, ax = self.figData
-            ax, frame, frame1, frame2, tframe, cmap = self.imagshow02D(ax=ax, data=data1, datl=data0,
+            ax, frame, frame1, frame2, tframe, cmap, perfmax = self.imagshow02D(ax=ax, data=data1, datl=data0,
                                                                           xlim=xlim, ylim=ylim,
                                                                           cmapint=cmapint, xlimE=xlimE, ylimE=ylimE,
                                                                           show=show, text=text)
@@ -294,12 +299,12 @@ class Visualization:
                 self.updateimagshow02D,
                 frames=range(n0, nframes),
                 fargs=(frame, frame1, frame2, tframe, 
-                       ax, ti2, name, name2, array_data, array_data2, grid[0], cmap),
+                       ax, ti2, name, name2, array_data, array_data2, grid[0], cmap, perfmax),
                 interval=interval, 
                 blit=False
                 )
         else:
-            fig, ax, frame, tframe = self.frame02D(data0, struc, xlim=xlim, ylim=ylim, show=show)
+            fig, ax, frame, tframe = self.frame02D(data0, struc, xlim=xlim, ylim=ylim, show=show, Npart=Npart)
             
             # Animation
             anim = animation.FuncAnimation(
@@ -323,7 +328,7 @@ class Visualization:
               n0=0, show=False,
               xlim=(-1, 1), ylim=(-1, 1), xlimE=(-1, 1), ylimE=(-1, 1),
               cmapint=['#050505', '#f0784d'], interval=200,
-              vconf=[10, 1000000, ['-vcodec', 'libx264']], save=True, text=None):
+              vconf=[10, 1000000, ['-vcodec', 'libx264']], save=True, text=None,  Npart=None):
         """ 
         Making a video from the data
         """
@@ -340,7 +345,7 @@ class Visualization:
         if plot2D:
             anim = self.fplot2D(n0, grid, array_data, nameP, struc,  cmapint=cmapint, array_data2=array_data2,
                                 name2=name2, xlim=xlim, ylim=ylim, xlimE=xlimE, ylimE=ylimE, show=show, 
-                                interval=interval, text=text)
+                                interval=interval, text=text, Npart=Npart)
         if plot3D:
             pass
 
