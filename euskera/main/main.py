@@ -3,9 +3,7 @@
 
 import sys
 import os
-import numpy as np
 import numexpr as ne
-import time
 
 # Check if pyFFTW is available
 try:
@@ -94,7 +92,10 @@ def evolve(model_parameters,
     }
     if comp_conserv_update:
         salva_data = to.update_simulation_parameters(comp_conserv_update, comp_conserv)
-            
+    
+    ######################### Saving the parameters
+    to.save_parameters(simulation_parameters, salva_data, comp_conserv, name="parameters")
+    
     ######################### Check if pyFFTW is available
     if not pyfftwOpt:
         print("WARNING: pyFFTW not available, using NumPy instead.")

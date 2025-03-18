@@ -2,6 +2,7 @@
 # tools file
 
 import numpy as np
+import os
 #############################################################################
 
 ########### Functions to updated default parameters
@@ -203,3 +204,50 @@ def progressbar(current_value, total_value, bar_length=20, progress_char='#'):
     
     # Print the progress bar
     print(loadbar, end='\r')
+    
+########### Save parameters
+#############################################################################
+
+def save_parameters(simulation_parameters, salva_data, comp_conserv, name="parameters"):
+    """
+    Saves simulation parameters to a text file.
+
+    Args:
+        simulation_parameters (dict): Dictionary with simulation parameters.
+        salva_data (dict): Dictionary containing saving parameters (must include "address").
+        comp_conserv (dict): Dictionary with complementary conserved quantities.
+        name (str, optional): Name of the output file (default is "parameters").
+
+    Returns:
+        None
+    """
+    # Merge dictionaries
+    dictGlobal = {**simulation_parameters, **salva_data, **comp_conserv}
+
+    # Define keys to exclude
+    not_save = {"address", "plott0", "Boverlap", "info"}
+
+    # Get address and ensure it's a valid path
+    address = dictGlobal.get("address", "./")  # Default to current directory
+    address = os.path.abspath(address)  # Convert to absolute path
+
+    # Ensure directory exists
+    os.makedirs(address, exist_ok=True)
+
+    # Construct full file path
+    file_path = os.path.join(address, f"{name}.txt")
+
+    # Write parameters to file
+    with open(file_path, 'w', encoding="utf-8") as f:
+        for param_name, value in dictGlobal.items():
+            if param_name not in not_save:
+                if isinstance(value, dict):  # Handle nested dictionary
+                    for sub_key, sub_value in value.items():
+                        f.write(f"{sub_key} >>> {sub_value}\n\n")
+                else:
+                    f.write(f"{param_name} >>> {value}\n\n")
+
+    print("#" * 10 + " Parameters saved " + "#" * 10)
+    print(f"File saved at: {file_path}")
+
+    return None
