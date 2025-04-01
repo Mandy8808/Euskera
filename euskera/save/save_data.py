@@ -31,7 +31,7 @@ def fdata_save(ti, data, data_save_obj, resol, end=False):
     Parameters:
     - format: The file format to use. Only NPZ or HDF5 format are supported.
     """
-    [xarray, yarray, zarray], rho, psi, phi, energ = data
+    [xarray, yarray, zarray], rho, psi, phi, cData = data
 
     if end:
         for name, obj in data_save_obj.items():
@@ -44,7 +44,7 @@ def fdata_save(ti, data, data_save_obj, resol, end=False):
             "save_psi": psi if psi is not None else None,
             "save_phi": phi if phi is not None else None,
             "save_plane": rho[:, :, resol // 2] if rho is not None else None,
-            "save_energies": energ if energ is not None else None,
+            "save_energies": cData if cData is not None else None,
             "save_line": rho[:, resol // 2, resol // 2] if rho is not None else None,
         }
         #fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False)

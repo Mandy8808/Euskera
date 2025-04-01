@@ -54,7 +54,7 @@ def Conserv(data, comp_conserv, simulation_parameters, obj2=None, methodEnerg=1,
                     "simulation_parameters": simulation_parameters, "methodEnerg": methodEnerg}
 
     data_out = [eval(comp[cant], safe_globals) for cant, opt in comp_conserv.items() if opt and cant in comp]
-    return data_out
+    return np.array(data_out, dtype=object)
 
 ########### Particle Number
 ################################################################################  
@@ -173,7 +173,6 @@ def kintE(psi, karray2, obj, kvec=None, method=1):
 ########################################
 
 def Pi(psi, kvec, Vcell, obj):
-    print("Hola")
     fft_psi, ifft_funct = obj
     funct = fft_psi(psi)
     functconj = np.conjugate(funct)

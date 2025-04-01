@@ -91,7 +91,7 @@ def evolve(model_parameters,
         "Ji": False
     }
     if comp_conserv_update:
-        salva_data = to.update_simulation_parameters(comp_conserv_update, comp_conserv)
+        comp_conserv = to.update_simulation_parameters(comp_conserv_update, comp_conserv)
     
     ######################### Saving the parameters
     to.save_parameters(simulation_parameters, salva_data, comp_conserv, name="parameters")
