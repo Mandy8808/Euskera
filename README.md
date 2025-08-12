@@ -4,7 +4,7 @@
 
 
 <p float="left">
-<a href = "LICENSE"> <img src="https://img.shields.io/badge/GNU GP license-green" alt="alt text"></a>
+<a href = "LICENSE.txt"> <img src="https://img.shields.io/badge/GNU GP license-green" alt="alt text"></a>
 <a href = "https://www.python.org"> <img src="https://img.shields.io/badge/Language-Python-blue" alt="alt text"> </a>
 <a href = "https://github.com/Mandy8808/GR_NS_BS?tab=readme-ov-file"> <img src="https://img.shields.io/badge/version-1.0-red" alt="alt text"> </a>
 </p>
