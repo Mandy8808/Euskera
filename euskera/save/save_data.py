@@ -29,8 +29,13 @@ def fdata_save(ti, data, data_save_obj, resol, end=False):
     Saves simulation data.
 
     Parameters:
-    - format: The file format to use. Only NPZ or HDF5 format are supported.
+    - ti: Temporal index.
+    - data: Tuple containing ([x, y, z], rho, psi, phi, cData).
+    - data_save_obj: Dictionary specifying the names of the data to be saved.
+    - resol: Spatial resolution used in the simulation.
+    - end: If True, the files are closed with the subname 'end_'.
     """
+
     [xarray, yarray, zarray], rho, psi, phi, cData = data
 
     if end:
@@ -39,23 +44,31 @@ def fdata_save(ti, data, data_save_obj, resol, end=False):
         print("\n All data was save")
     else:
         save_map = {
-            "grid": [xarray[:, 0, 0], yarray[0, :, 0], zarray[0, 0, :]] if xarray is not None else None,
-            "save_rho": rho if rho is not None else None,
-            "save_psi": psi if psi is not None else None,
-            "save_phi": phi if phi is not None else None,
-            "save_plane": rho[:, :, resol // 2] if rho is not None else None,
-            "save_energies": cData if cData is not None else None,
-            "save_line": rho[:, resol // 2, resol // 2] if rho is not None else None,
+            "grid": "[xarray[:, 0, 0], yarray[0, :, 0], zarray[0, 0, :]] if xarray is not None else None",
+            #
+            "save_rho": "rho if rho is not None else None",
+            "save_psi": "psi if psi is not None else None",
+            "save_phi": "phi if phi is not None else None",
+            #
+            "save_plane_rho": "rho[:, :, resol // 2] if rho is not None else None",
+            "save_plane_psi": "psi[:, :, :, resol // 2] if psi is not None else None",
+            "save_plane_phi": "phi[:, :, resol // 2] if phi is not None else None",
+            #
+            "save_line_rho": "rho[:, resol // 2, resol // 2] if rho is not None else None",
+            "save_line_psi": "psi[:, :, resol // 2, resol // 2] if psi is not None else None",
+            "save_line_phi": "phi[:, resol // 2, resol // 2] if phi is not None else None",
+            #
+            "save_energies": "cData if cData is not None else None",
         }
         #fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
         for name, obj in data_save_obj.items():
             if name in save_map:
-                if save_map[name] is None and name !="grid":  # the second condition is that after save the grid, its value change to None
+                if eval(save_map[name]) is None and name != "grid":  # the second condition is that after save the grid, its value change to None
                     print(f"Warning: Skipping {name} save because data is missing.")
                     continue
                 if name == "grid" and ti != 0:
                     continue
-                obj.save_file(save_map[name], ti=None if name == "grid" else ti)
+                obj.save_file(eval(save_map[name]), ti=None if name == "grid" else ti)
     return None
 
 def nameData(address, file_format, info=True):
@@ -82,7 +95,7 @@ def nameData(address, file_format, info=True):
         #print(f"Se encontraron {count} archivos con la extensión .{file_format}")
         print(f"Found {count} files with the .{file_format} extension.")
     return DataName
-        
+
 def JoinFilesInOneZip(file_list, output_zip):
     """
     Uniendo todos los archivos en un .zip
@@ -95,28 +108,22 @@ def JoinFilesInOneZip(file_list, output_zip):
     Crea un archivo: archive_name.zip
     """
 
-    # creando el .zip 
-    archive = zipfile.ZipFile(output_zip, mode='w', compression=zipfile.ZIP_DEFLATED, allowZip64=True)
-    
     # identificando los archivos a comprimir
     if isinstance(file_list, (list, tuple)):
         filenames = file_list
     elif isinstance(file_list, str):
         filenames = glob.glob(file_list)
 
-    # Open each archive and write to the common archive
-    for filename in filenames:
-        f = zipfile.ZipFile(filename, mode='r', compression=zipfile.ZIP_DEFLATED)
-        for name in f.namelist():
-            data = f.open(name, 'r')
-            # Save under name without .npy
-            archive.writestr(name[:-4], data.read())
-        f.close()
-        
-        # Remove original files
-        os.remove(filename)
-    archive.close()
-    
+    with zipfile.ZipFile(output_zip, mode='w', compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+        for filename in filenames:
+            with zipfile.ZipFile(filename, mode='r') as f:
+                for name in f.namelist():
+                    # Save under name without .npy
+                    archive.writestr(name[:-4], f.read(name))  # leer y escribir directamente
+
+            # Remove original files
+            os.remove(filename)
+
 class StoreSolution:
     """ 
     Class to save the results.
@@ -203,3 +210,80 @@ class StoreSolution:
             # Archive files
             archive_name = os.path.join(self.address, f"{zip_name}.{self.format}")
             JoinFilesInOneZip(filenames, archive_name)
+
+
+################ Old versions
+        
+def JoinFilesInOneZip_old(file_list, output_zip):
+    """
+    Uniendo todos los archivos en un .zip
+
+    IN:
+    output_zip -> nombre que daremos al .zip
+    file_list -> lista o tupla de datos, o dirección donde encontraremos los datos
+
+    Out:
+    Crea un archivo: archive_name.zip
+    """
+
+    # creando el .zip 
+    archive = zipfile.ZipFile(output_zip, mode='w', compression=zipfile.ZIP_DEFLATED, allowZip64=True)
+    
+    # identificando los archivos a comprimir
+    if isinstance(file_list, (list, tuple)):
+        filenames = file_list
+    elif isinstance(file_list, str):
+        filenames = glob.glob(file_list)
+
+    # Open each archive and write to the common archive
+    for filename in filenames:
+        f = zipfile.ZipFile(filename, mode='r', compression=zipfile.ZIP_DEFLATED)
+        for name in f.namelist():
+            data = f.open(name, 'r')
+            # Save under name without .npy
+            archive.writestr(name[:-4], data.read())
+        f.close()
+        
+        # Remove original files
+        os.remove(filename)
+    archive.close()
+
+def extract_zip_to_memory(filename):
+    """
+    Extrae los archivos desde un zip a un diccionario en memoria
+    """
+    extracted = []
+    with zipfile.ZipFile(filename, 'r') as f:
+        for name in f.namelist():
+            data = f.read(name)
+            # Save under name without .npy
+            extracted.append((name[:-4], data))
+    return (filename, extracted)
+
+def JoinFilesInOneZip_old(file_list, output_zip):
+    """
+    Une todos los archivos de múltiples .zip en un solo .zip, usando multiprocesamiento
+    """
+    from concurrent.futures import ProcessPoolExecutor
+
+    # Identificar los archivos a comprimir
+    if isinstance(file_list, (list, tuple)):
+        filenames = file_list
+    elif isinstance(file_list, str):
+        filenames = glob.glob(file_list)
+
+    # Extraer en paralelo
+    results = []
+    with ProcessPoolExecutor() as executor:
+        for result in executor.map(extract_zip_to_memory, filenames):
+            results.append(result)
+
+    # Escribir en un solo zip de forma secuencial
+    with zipfile.ZipFile(output_zip, mode='w', compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
+        for original_file, extracted_files in results:
+            for name, data in extracted_files:
+                archive.writestr(name, data)
+
+    # Eliminar los zips originales
+    for f in filenames:
+        os.remove(f)

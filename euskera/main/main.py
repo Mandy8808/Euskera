@@ -4,6 +4,7 @@
 import sys
 import os
 import numexpr as ne
+import numpy as np
 
 # Check if pyFFTW is available
 try:
@@ -74,12 +75,20 @@ def evolve(model_parameters,
         "save_number": 10,
         "data_save" : {
             "grid": True,
+            #
             "save_rho": False,
             "save_psi": False,
-            "save_phi": True,
-            "save_plane": True,
-            "save_energies": True,
-            "save_line": True}
+            "save_phi": False,
+            #
+            "save_plane_rho": False,
+            "save_plane_psi": False,
+            "save_plane_phi": False,
+            #
+            "save_line_rho": True,
+            "save_line_psi": True,
+            "save_line_phi": True,
+            #
+            "save_energies": True}
         }
     if salva_data_update:
         salva_data = to.update_simulation_parameters(salva_data_update, salva_data)
@@ -88,7 +97,8 @@ def evolve(model_parameters,
         "Numb_Part": True,
         "Energ": True,
         "Pi": False,
-        "Ji": False
+        "Ji": False,
+        "Frequency": False
     }
     if comp_conserv_update:
         comp_conserv = to.update_simulation_parameters(comp_conserv_update, comp_conserv)
@@ -134,9 +144,17 @@ def evolve(model_parameters,
     ################################################################################################################
     
     ########################## Conserved
+    if comp_conserv.get("Frequency"):  # Identifying the position of the max
+        max_index = [np.argmax(psi_i) for psi_i in psi]
+        max_pos = [np.unravel_index(max_index_i, psi[0].shape) for max_index_i in max_index] 
+        if info:
+            print("Index of the maximum of psi: ", max_pos)
+    else:
+        max_pos = None
+        
     methodEnerg = simulation_parameters.get("methodEnerg")
     data = [psi, rho, phisp, distarray, karray2, kvec]
-    cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=None, methodEnerg=methodEnerg)
+    cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=None, methodEnerg=methodEnerg, max_pos=max_pos)
     if info:
         print("Initial conserved quantities:", cData)
     ################################################################################################################
@@ -158,7 +176,7 @@ def evolve(model_parameters,
     lambda_value = simulation_parameters.get("lambda_value")
     halfstepornot = True  # True for a half step False for a full step
     fields = [phisp, psi, rho]
-    param = [num_steps, ht, halfstepornot, its_per_save, num_threads, cmass, resol, lambda_value]
+    param = [num_steps, ht, halfstepornot, its_per_save, num_threads, cmass, resol, lambda_value, max_pos]
     distDat = [distarray, karray2, rkarray2]
 
     # Evolve the system

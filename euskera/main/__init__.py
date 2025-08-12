@@ -6,6 +6,7 @@ from .evolut_routines import PKP
 from .grids import RealGrid, KGrid, meshgrid
 from .potential import Upotential
 from .conserv_quant import Conserv, Npar, Energ, centpotetE, selfinterCondensateE, selfinterFieldE, kintE, Pi
+from .frequency import main_frequency, frequMet1, frequMet2
 
 # Explicitly define what should be imported when using `from modulo.main import *`
 __all__ = [
@@ -19,7 +20,10 @@ __all__ = [
            'Upotential',
            
            # conserved
-           'Conserv', 'Npar', 'Energ, ''centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi'
+           'Conserv', 'Npar', 'Energ, ''centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi',
+           
+           # frequency
+           'main_frequency', 'frequMet1', 'frequMet2'
            
            ]
 

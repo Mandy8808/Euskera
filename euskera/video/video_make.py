@@ -125,7 +125,6 @@ class Visualization:
         
         if text:
             ax[0].text(xminE+x_pos/2, y_pos, s=text, c='white', fontsize='small')
-        
             
         ax[0].set_axis_off()
         ax[0].set_xlim(xlim)
@@ -140,7 +139,7 @@ class Visualization:
         return ax, frame, frame1, frame2, tframe, cmap, perfmax
     
     
-    def frame02D(self, data, struc, xlim=None, ylim=None, show=False, Npart=None):
+    def frame02D(self, data, struc, xlim=None, ylim=None, show=False, plot2D="density"):
         """ 
         Creates the first frame of a 2D plot.
 
@@ -165,18 +164,26 @@ class Visualization:
         if not hasattr(self, 'figData'):
             raise AttributeError("self.figData is not defined. Ensure it's initialized before calling this function.")
         ###############################
-    
+
         fig, ax = self.figData
-        # perfm = np.max(perf)
-        frame, = ax.plot(xi, perf, ls=ls, c=color, lw=lw)
-        
-        if Npart:
-            ax.hlines(Npart, xmin=min(xi), xmax=max(xi), ls='-', lw=1, color='k', alpha=0.5)
-            ax.text(x=min(xi)+1, y=Npart-0.5, s=r'Particle Number', fontsize='small')
+        frame = []
+        temp_data = [perf] if perf.ndim == 1 else perf
+        for ind, per in enumerate(temp_data):
+            if plot2D == "density":
+                # Density plot must be 1D:
+                if perf.ndim != 1:
+                    raise ValueError(f"The data associated with '{plot2D}' must be 1D.")
+                temp, = ax.plot(xi, per, ls=ls, c=color[ind], lw=lw)
+            else:
+                per_real = np.abs(per) # **2  # "scalar profile"
+                temp, = ax.plot(xi, per_real, ls=ls, c=color[ind], lw=lw)
+            frame.append(temp)
 
         # Compute text position
         x_pos = xlim[0] + (xlim[1] - xlim[0]) / 2 if xlim else np.mean(xi) + 1
-        y_pos = max(perf) - max(perf) / 8
+        
+        # y_pos = np.max(temp_data) - np.max(temp_data) / 8
+        y_pos = np.max(np.abs(temp_data)**2) - np.max(np.abs(temp_data)**2)/8
         tframe = ax.text(x_pos, y_pos, s=r'time=$%3.2f$' % t0, fontsize='small')
 
         # Set axis limits
@@ -230,28 +237,30 @@ class Visualization:
         return frame, frame1, frame2, tframe
 
     def updateframe2D(self, ind, frame, tframe,
-                        ax, ti, name, array_data):
+                        plot2D, ti, name, array_data):
         """ 
         """
         t = ti[ind]
-        #print(t)
         tframe.set_text(r'time=$%4.3f$'%t)
 
-        ui = array_data[name+'%d'%ind]
+        ui_data = array_data[name+'%d'%ind]
 
-        # updating axis
-        # uimax = np.max(ui)
-        frame.set_ydata(ui)
-
-        # updating y-lim
-        # ax.set_ylim(min(ui)-min(ui)/8, max(ui)+max(ui)/8)
+        for ind, ui in enumerate([ui_data] if ui_data.ndim == 1 else ui_data):
+            if plot2D == "density":
+                frame[ind].set_ydata(ui)
+            else:
+                frame[ind].set_ydata(np.abs(ui)) #**2)
 
         return frame, tframe
 
-    def fplot2D(self, n0, grid, array_data, name, struc, xlim=(-1, 1),
-                ylim=(-1, 1), xlimE=(-1, 1), ylimE=(-1, 1), interval=200,
-                cmapint=['#050505', '#f0784d'], array_data2=None, name2=False,
-                show=False, text=None, Npart=None):
+    def fplot2D(self, n0, grid, array_data,
+                name, struc, plot2D="density",
+                xlim=(-1, 1), ylim=(-1, 1), xlimE=(-1, 1), ylimE=(-1, 1),
+                interval=200,
+                cmapint=['#050505', '#f0784d'],
+                array_data2=None, name2=False,
+                show=False,
+                text=None, dt=1):
         """
         Creates a 2D animated plot using time-dependent data.
 
@@ -269,25 +278,27 @@ class Visualization:
         # Check if grid is valid
         if not isinstance(grid, (list, np.ndarray)) or len(grid) == 0:
             raise ValueError("Invalid 'grid': Expected a non-empty list or NumPy array.")
-        # poner check the array_data
     
-        # time-data
-        ti = array_data['t']
+        # Time data
+        ti = array_data['t'] * dt
+
+        # Profile data
         profile_key = f"{name}{n0}"
         prof0 = array_data[profile_key]
         data0 = [prof0, grid[0], ti[n0]]
-        
-        if name2:
-            ti2 = array_data2['t']
-            profile_key = f"{name2}{n0}"
-            prof20 = array_data2[profile_key]
-            data1 = [prof20, ti2[n0]]
         
         # Number of frames
         nframes = len(ti) - n0
         
         # First frame
         if name2:
+            # print un warning donde dice q 
+            # Profile plane data
+            ti2 = array_data2['t'] * dt
+            profile_key = f"{name2}{n0}"
+            prof20 = array_data2[profile_key]
+            data1 = [prof20, ti2[n0]]
+
             fig, ax = self.figData
             ax, frame, frame1, frame2, tframe, cmap, perfmax = self.imagshow02D(ax=ax, data=data1, datl=data0,
                                                                           xlim=xlim, ylim=ylim,
@@ -297,23 +308,23 @@ class Visualization:
             anim = animation.FuncAnimation(
                 fig, 
                 self.updateimagshow02D,
-                frames=range(n0, nframes),
-                fargs=(frame, frame1, frame2, tframe, 
+                frames = range(n0, nframes),
+                fargs = (frame, frame1, frame2, tframe, 
                        ax, ti2, name, name2, array_data, array_data2, grid[0], cmap, perfmax),
-                interval=interval, 
-                blit=False
+                interval = interval, 
+                blit = False
                 )
         else:
-            fig, ax, frame, tframe = self.frame02D(data0, struc, xlim=xlim, ylim=ylim, show=show, Npart=Npart)
+            fig, ax, frame, tframe = self.frame02D(data0, struc, xlim=xlim, ylim=ylim, show=show, plot2D=plot2D)
             
             # Animation
             anim = animation.FuncAnimation(
                 fig, 
                 self.updateframe2D,
-                frames=range(n0, nframes),
-                fargs=(frame, tframe, ax, ti, name, array_data),
-                interval=interval, 
-                blit=False
+                frames = range(n0, nframes),
+                fargs = (frame, tframe, plot2D, ti, name, array_data),
+                interval = interval, 
+                blit = False
                 )
         
         return anim
@@ -321,36 +332,41 @@ class Visualization:
     ############
 
     #############
-    def video(self, nameP, struc, nameV, name2=False, coord=['x', 'y', 'z'], address=None,
+    def video(self, nameP,
+              struc, nameV, name2=False, coord=['x', 'y', 'z'], address=None,
               namegrid='end_grid.npz',
               format='.npz',
-              plot2D=True, plot3D=False,
+              plot2D="density",
               n0=0, show=False,
               xlim=(-1, 1), ylim=(-1, 1), xlimE=(-1, 1), ylimE=(-1, 1),
               cmapint=['#050505', '#f0784d'], interval=200,
-              vconf=[10, 1000000, ['-vcodec', 'libx264']], save=True, text=None,  Npart=None):
+              vconf=[10, 1000000, ['-vcodec', 'libx264']],
+              save=True, text=None, dt=1.):
         """ 
         Making a video from the data
         """
+        plot2D_Opt = ("density", "field")
+
+        # checking
+        if plot2D not in plot2D_Opt:
+            raise ValueError(f"Invalid choose fo plot2D, {plot2D} not in the list: {{density, field}}")
         
-        # loading data
+        # Load data
+        result = self.extDataSave(coord=coord, namegrid=namegrid, nameP=nameP,
+                          name2=name2, address=address, format=format)
         if name2:
-            grid, array_data, array_data2 = self.extDataSave(coord=coord, namegrid=namegrid,
-                                                nameP=nameP, name2=name2, address=address, format=format)
+            grid, array_data, array_data2 = result
         else:
-            grid, array_data = self.extDataSave(coord=coord, namegrid=namegrid,
-                                            nameP=nameP, name2=name2, address=address, format=format)
+            grid, array_data = result
             array_data2 = None
 
-        if plot2D:
-            anim = self.fplot2D(n0, grid, array_data, nameP, struc,  cmapint=cmapint, array_data2=array_data2,
-                                name2=name2, xlim=xlim, ylim=ylim, xlimE=xlimE, ylimE=ylimE, show=show, 
-                                interval=interval, text=text, Npart=Npart)
-        if plot3D:
-            pass
+        # Making the animation
+        anim = self.fplot2D(n0, grid, array_data, nameP, struc, plot2D=plot2D,
+                            cmapint=cmapint, array_data2=array_data2, name2=name2,
+                            xlim=xlim, ylim=ylim, xlimE=xlimE, ylimE=ylimE, show=show, 
+                            interval=interval, text=text, dt=dt)
 
         fps, bitrate, extra_args = vconf
-        
         if save:
             anim.save(nameV+'.mp4', bitrate=bitrate, fps=fps, extra_args=extra_args)  # direc+nameV+
         else:

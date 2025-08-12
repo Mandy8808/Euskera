@@ -3,6 +3,10 @@
 
 import numpy as np
 import os
+
+from scipy.integrate import quad
+from scipy.interpolate import interp1d
+
 #############################################################################
 
 ########### Functions to updated default parameters
@@ -50,7 +54,8 @@ def update_simulation_parameters(simulation_parameters_update, simulation_parame
         "Energ": bool,
         "Pi": bool,
         "Ji": bool,
-        "methodEnerg": int
+        "methodEnerg": int,
+        "Frequency": bool
     }
 
     for name, element_update in simulation_parameters_update.items():
@@ -251,3 +256,110 @@ def save_parameters(simulation_parameters, salva_data, comp_conserv, name="param
     print(f"File saved at: {file_path}")
 
     return None
+
+
+## MASS VALUE
+#######################
+def massVal(r, sigtot, gamma=0, fac=4*np.pi, kind='quadratic', fill_value="extrapolate"):
+    """
+    Calculates the configuration mass based on the radial density profiles sigtot.
+
+    Parameters:
+    - r: array-like, radial positions where `sigtot` is evaluated.
+    - sigtot: array-like, density profiles as a function of `r`.
+    - gamma: int parameter, 1 for radial polarization, 0 for the rest (default is 0).
+    - kind: string, interpolation method for `sigtot` (default is 'quadratic').
+
+    Returns:
+    - Mas: float, calculated mass after integration.
+
+    Note:
+    For multifrequency cases:
+    sigtot = sigs[0]**2 + sigs[1]**2 + sigs[2]**2
+    """
+
+    # Ensure r and sigtot are sorted
+    if not all(r[i] < r[i+1] for i in range(len(r)-1)):
+        raise ValueError("Input array `r` must be strictly increasing.")
+    
+    # Ensure that gamma is either 0 or 1
+    if gamma not in [0, 1]:
+        raise ValueError("gamma value must be 0 or 1.")
+    
+    # Interpolate sigtot
+    sigF = interp1d(r, sigtot, kind=kind, fill_value=fill_value)
+
+    # Define the integrand Bf(r)
+    Bf = lambda r: r**(2*(gamma+1)) * sigF(r)**2
+
+    # Integration limits
+    rmin, rmax = r[0], r[-1]
+
+    # Perform the numerical integration
+    integral_result, error = quad(Bf, rmin, rmax)
+    
+    if error > 1e-5:  # Large error margin, can be adjusted
+        print(f"Warning: The integral may not have converged well. Error estimate: {error}")
+
+    # Calculate the mass (Mas)
+    Mas = fac*integral_result  # masa: c*hb/(G*m*Lambda^(1/2))  -> Lambda=4pi m^3/Mp^2
+    return Mas
+
+
+########### Recovering parameters
+#############################################################################
+def read_parameter(address, name):
+    type_data = {
+        "lambda_value": int, 
+        "num_threads": int,
+        "gridlength": float,
+        "resol": int,
+        "step_factor": float,
+        "t0": float,
+        "tmax": float,
+        "rmax": float,
+        "Plim": float,
+        "cmass": float,
+        "methodEnerg": int,
+        "format": str,
+        "save_number": int,
+        "grid": bool,
+        "save_rho": bool,
+        "save_psi": bool,
+        "save_phi": bool,
+        "save_plane": bool,
+        "save_energies": bool,
+        "save_line": bool,
+        "Numb_Part": bool,
+        "Energ": bool,
+        "Pi": bool,
+        "Ji": bool,
+        "Frequency": bool
+    }
+
+    with open(address, 'r') as file:
+        for line in file:
+            if '>>>' in line:
+                key, value = line.strip().split('>>>')
+                key = key.strip()
+                value = value.strip()
+                if key == name:
+                    expected_type = type_data.get(name, str)
+                    # Special handling for boolean values
+                    if expected_type == bool:
+                        return value.lower() == 'true'
+                    try:
+                        return expected_type(value)
+                    except ValueError:
+                        print(f'Error converting value for "{name}".')
+                        return None
+    # If not found
+    print(f'Parameter "{name}" not found.')
+    return None
+
+def give_parameter(address, name):
+    value = read_parameter(address, name)
+    if value is not None:
+        return value
+    else:
+        print(f'Could not retrieve the value of "{name}".')

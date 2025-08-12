@@ -9,6 +9,7 @@ sys.path.append(parent_dir)
 
 import models.soliton_model as sm
 import models.gaussiana_model as gm
+import models.ell_model as ell_m
 
 ###################################################################################################
 
@@ -22,7 +23,7 @@ class Models():
     # Class attribute
     
     ###################################################################################################
-    
+
     def __init__(self, info=False, **kwargs):
         """
         Initialize the Models class.
@@ -48,7 +49,8 @@ class Models():
         # Instance attributes
         self.model = {
             "soliton": sm.Soli_Model(self.parameters_mod.get("soliton", {})),  # Create an instance of soliton_model
-            "gaussian_function": gm.Gaussiana_Model(self.parameters_mod.get("gaussian_function", {})) # Create an instance of gaussian_model
+            "gaussian_function": gm.Gaussiana_Model(self.parameters_mod.get("gaussian_function", {})), # Create an instance of gaussian_model
+            "ell_boson": ell_m.ell_Model(self.parameters_mod.get("ell_boson", {})) # Create an instance of gaussian_model
         }
         
         if info:
@@ -71,8 +73,7 @@ class Models():
     
         if "soliton" in self.name:
             model_self = self.model["soliton"]
-            [xarray, yarray, zarray, distarray], [psi, rho_i] = model_self.PsiInic(field_components,
-                                                                                   parameters_simulation)
+            [xarray, yarray, zarray, distarray], [psi, rho_i] = model_self.PsiInic(field_components, parameters_simulation)
             grid = True
             
         if "gaussian_function" in self.name:
@@ -82,6 +83,16 @@ class Models():
             else:
                 [xarray, yarray, zarray, distarray], [psi, rho_i] = model_self.GaussSolProf(field_components, parameters_simulation,
                                                                                             psi, xarray, yarray, zarray)
+                grid = True
+                
+        #if "ell_boson" in self.name:
+        #    model_self = self.model["ell_boson"]
+        #    if grid and psi is not None:
+        #        grid_data = [xarray, yarray, zarray, distarray] 
+        #        [psi, rho_i] = model_self.PsiInic(field_components, parameters_simulation, grid=grid_data)
+        #    else:
+        #        [xarray, yarray, zarray, distarray], [psi, rho_i] = model_self.PsiInic(field_components, parameters_simulation)
+        #        grid = True
             
         return [xarray, yarray, zarray, distarray], [psi, rho_i]
     
@@ -138,7 +149,8 @@ def dict_names(name):
     # Mapping model names to their respective type dictionaries
     default_parameters = {
         "soliton": dict_soliton,
-        "gaussian_function": dict_gauss_func
+        "gaussian_function": dict_gauss_func,
+        "ell_boson": dict_soliton
     }
     dict_prop = default_parameters.get(name)
     
@@ -168,7 +180,8 @@ def dict_type(name):
     # Mapping model names to their respective type dictionaries
     default_parameters_type = {
         "soliton": dict_soliton_type,
-        "gaussian_function": dict_gauss_func_type
+        "gaussian_function": dict_gauss_func_type,
+        "ell_boson": dict_soliton_type
     }
     dict_prop = default_parameters_type.get(name)
     

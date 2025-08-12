@@ -14,7 +14,9 @@ except ImportError:
     pyfftwOpt = False
 
 ########################################################################################################################
-def Conserv(data, comp_conserv, simulation_parameters, obj2=None, methodEnerg=1, pyfftwOpt=False):
+def Conserv(data, comp_conserv, simulation_parameters,
+            obj2=None, methodEnerg=1, pyfftwOpt=False,
+            max_pos=None):
     """ 
     Compute conserved quantities in a numerical simulation.
     """
@@ -42,24 +44,48 @@ def Conserv(data, comp_conserv, simulation_parameters, obj2=None, methodEnerg=1,
     
     # Define available functions
     comp = {
-        "Numb_Part": "Npar(rho, Vcell)",
+        "Numb_Part": "Npar(psi, Vcell)", #"Numb_Part": "Npar(rho, Vcell)",
         "Energ": "Energ(rho, psi, phisp, Vcell, distarray, karray2, kvec2, obj2, simulation_parameters, method=methodEnerg)",
-        "Pi": "Pi(psi, kvec2, Vcell, obj2)", "Ji": None
+        "Pi": "Pi(psi, kvec2, Vcell, obj2)", "Ji": None,
+        "Frequency": "psiData(psi, max_pos)"
     }
     
+    indx = indy = indz = None
     # Restrict eval() to known functions
     safe_globals = {"Npar": Npar, "Energ": Energ, "Pi": Pi, "rho": rho, "psi": psi, 
                     "phisp": phisp, "Vcell": Vcell, "distarray": distarray, 
                     "karray2": karray2, "kvec2": kvec2, "obj2": obj2, 
-                    "simulation_parameters": simulation_parameters, "methodEnerg": methodEnerg}
+                    "simulation_parameters": simulation_parameters, "methodEnerg": methodEnerg,
+                    "psiData": psiData, "max_pos": max_pos
+    }
+    
 
     data_out = [eval(comp[cant], safe_globals) for cant, opt in comp_conserv.items() if opt and cant in comp]
+    
     return np.array(data_out, dtype=object)
 
 ########### Particle Number
 ################################################################################  
-def Npar(rho, Vcell):
-    return Vcell * np.sum(rho)
+#def Npar(rho, Vcell):
+#    return Vcell * np.sum(rho)
+
+def Npar(psi, Vcell):
+    """
+    Estimate 'number of particles' or total norm from discretized wavefunction.
+
+    Parameters:
+    - psi: list of arrays, each representing a wavefunction component over a 3D grid
+
+    Returns:
+    - List of total 'mass' or norm for each component: ∫ |ψ|² dV
+    """
+    mass_comp = []
+    for comp in psi:
+        comp = np.array(comp)
+        mass = Vcell * np.sum(np.abs(comp)**2)
+        mass_comp.append(mass)
+
+    return [sum(mass_comp), mass_comp]
 
 ########### Total Energy
 ################################################################################
@@ -184,3 +210,7 @@ def Pi(psi, kvec, Vcell, obj):
         
     return [Vcell * np.sum(comp) for comp in dens_P_i]
 ########################################
+
+def psiData(psi, max_pos):
+    data_comp = [comp[ind[0], ind[1], ind[2]] for ind, comp in zip(max_pos, psi)]
+    return data_comp

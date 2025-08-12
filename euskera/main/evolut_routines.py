@@ -51,7 +51,7 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
     tinit = time.time()
     
     # Unpack parameters
-    num_steps, ht, halfstepornot, its_per_save, num_threads, cmass, resol, lambda_value = param
+    num_steps, ht, halfstepornot, its_per_save, num_threads, cmass, resol, lambda_value, max_pos = param
     phisp, psi, rho = fields
     distarray, karray2, rkarray2 = distDat
     methodEnerg = simulation_parameters["methodEnerg"]
@@ -91,16 +91,15 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
         # Save step
         if (((i + 1) % its_per_save) == 0) and halfstepornot == False:
             # Next if statement ensures that an extra half step is performed at each save point
-            psi = ne.evaluate("exp(-1j * 0.5 * ht * phisp) * psi")
+            # psi = ne.evaluate("exp(-1j * 0.5 * ht * phisp) * psi")
+            psi = ne.evaluate(systema0)
             rho = ne.evaluate("sum(rho_i, axis=0)")  # rho = np.sum(rho_i, axis=0)
             halfstepornot = True
             
             # Calculate energies and save data
             data = [psi, rho, phisp, distarray, karray2, kvec]
-            cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg)  # method=1
-            
-            energ = cData
-            data = ([None, None, None], rho, psi, phisp, energ)
+            cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg, max_pos=max_pos)  # method=1
+            data = ([None, None, None], rho, psi, phisp, cData)
             sv.fdata_save(ti=count, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
             count += 1
         

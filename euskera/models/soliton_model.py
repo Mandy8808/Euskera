@@ -129,7 +129,7 @@ def psievaluation(funct, psi, params, initsolitonInt, coord, field_components, P
              
 def InitialSolitonsProf(funct, psi, fInt, grid, velocity, param, initsoliton, Plim=5.6,
                         t0=0, delta_x=0.00001):
-    """
+    r"""
     Compute the initial soliton profile:
     
     \psi_i(\vec{x}, t) = scal fInt(\sqrt{scal}|\vec{x}-\vec{v}t|) 
@@ -156,16 +156,21 @@ def InitialSolitonsProf(funct, psi, fInt, grid, velocity, param, initsoliton, Pl
 
     # Compute initial soliton shape
     if t0 == 0:
+        # funct, min_index, min_dist = initsoliton(funct, grid[0], grid[1], grid[2],
+        #                    positionCen, fInt, Plim=Plim, alpha=alpha, delta_x=delta_x)
         funct = initsoliton(funct, grid[0], grid[1], grid[2],
                             positionCen, fInt, Plim=Plim, alpha=alpha, delta_x=delta_x)
     else:
         pass # poner el caso con dx - v*t
-
+    
+    # min_pos = np.unravel_index(min_index, funct.shape) 
+    # print(min_pos, min_dist)
+    
     ####### Impart velocity to solitons in Galilean invariant way
     funct = ne.evaluate("exp(1j*(alpha*beta*t0 + velx*xarray + vely*yarray + velz*zarray - 0.5*(velx*velx + vely*vely + velz*velz)*t0 + phase)) * funct")
     psi = ne.evaluate("psi + funct")
+    
     return psi
-
 
 @njit(parallel=True)
 def initsolitonInt(funct, xarray, yarray, zarray, position,
@@ -184,8 +189,9 @@ def initsolitonInt(funct, xarray, yarray, zarray, position,
     Returns:
     - Updated `funct` array with soliton values.
     """
-
     rmax_sq = Plim ** 2  # Precompute squared max radius
+    
+    # min_dat = np.zeros(funct.shape, dtype=np.float64)  # Use fixed type arrays
     
     for i in prange(funct.shape[0]):  # Use parallel execution
         for j in range(funct.shape[1]):
@@ -194,8 +200,9 @@ def initsolitonInt(funct, xarray, yarray, zarray, position,
                 dy = yarray[0, j, 0] - position[1]
                 dz = zarray[0, 0, k] - position[2]
                 
-                dist_sq = dx * dx + dy * dy + dz * dz  # Squared distance
-                
+                dist_sq = dx * dx + dy * dy + dz * dz  # Squared distance                
+                # min_dat[i, j, k] = dist_sq
+                # print(dist_sq, rmax_sq)
                 if alpha is not None:
                     scaled_dist_sq = alpha * dist_sq
                     if scaled_dist_sq <= rmax_sq:
@@ -209,8 +216,12 @@ def initsolitonInt(funct, xarray, yarray, zarray, position,
                         funct[i, j, k] = fInt[index2]
                     else:
                         funct[i, j, k] = 0
-
-    return funct
+    
+    # Identifying the min_pos, and min_dist
+    # min_index = np.argmin(min_dat)
+    # min_dist = alpha * np.min(min_dat) if alpha else np.min(min_dat)
+    
+    return funct #, min_index, min_dist
 
 def initsoliton(funct, xarray, yarray, zarray, position, fInt, Plim=5.6, delta_x=None, alpha=None):
     """
@@ -240,6 +251,7 @@ def initsoliton(funct, xarray, yarray, zarray, position, fInt, Plim=5.6, delta_x
         dz = zarray[0, 0, index[2]] - position[2]
         
         dist_sq = dx**2 + dy**2 + dz**2  # Squared distance
+        
         if alpha:
             scaled_dist_sq = alpha * dist_sq
             if scaled_dist_sq <= Plim**2:  # Compare squared values to avoid sqrt
