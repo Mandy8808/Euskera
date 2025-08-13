@@ -1,0 +1,58 @@
+lambda_value >>> 0
+
+num_threads >>> 11
+
+gridlength >>> 20
+
+resol >>> 160
+
+step_factor >>> 1.0
+
+t0 >>> 0
+
+tmax >>> 5
+
+rmax >>> 0
+
+Plim >>> 0
+
+cmass >>> 5
+
+methodEnerg >>> 1
+
+format >>> npz
+
+save_number >>> 10
+
+grid >>> True
+
+save_rho >>> True
+
+save_psi >>> False
+
+save_phi >>> True
+
+save_plane_rho >>> True
+
+save_plane_psi >>> False
+
+save_plane_phi >>> True
+
+save_line_rho >>> True
+
+save_line_psi >>> False
+
+save_line_phi >>> True
+
+save_energies >>> False
+
+Numb_Part >>> False
+
+Energ >>> False
+
+Pi >>> False
+
+Ji >>> False
+
+Frequency >>> False
+
