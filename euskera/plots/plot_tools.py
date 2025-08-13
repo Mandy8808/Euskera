@@ -41,7 +41,56 @@ def colorBar_and_normaliz(maximo, minimo, cmapStr=False, cmapint=None):
 
 ########### 2D-Plane
 #############################################################################
-def imagshow2D(data, datl=None, xlim=(-0.45, 0.45), ylim=(-0.45, 0.45), contour=True, imshow=True,
+def imagshow2D(data, datl=None, xlim=(-0.45, 0.45), ylim=(-0.45, 0.45),
+               contour=True, imshow=True, cmapint=['#050505', '#f0784d'],
+               xlimE=(-1, 1), ylimE=(-1, 1), levels=4, alpha=0.5,
+               save=False, filename='rho2D.pdf', dpi=1000, out=False, v_vals=None, info=False):
+    """
+    Function to visualize 2D data using contour and imshow.
+    """
+
+    [xminE, xmaxE], [yminE, ymaxE] = xlimE, ylimE
+    vmin, vmax = v_vals if v_vals else [np.abs(data).min(), np.abs(data).max()]
+    if info:
+        print('vmin, vmax', vmin, vmax)
+
+    cmap, norm = colorBar_and_normaliz(vmax, vmin, cmapStr=False, cmapint=cmapint)
+
+    if datl is None:
+        fig, ax = plt.subplots(figsize=(8, 8))
+        axes = [ax]
+    else:
+        fig, axes = plt.subplots(1, 2, figsize=(8, 3.5))
+        ax = axes[0]
+
+    if contour:
+        ax.contour(data, cmap=cmap, norm=norm, origin='lower', alpha=alpha,
+                   extent=(xminE, xmaxE, yminE, ymaxE), levels=levels, zorder=2)
+
+    if imshow:
+        ax.imshow(data, cmap=cmap, extent=(xminE, xmaxE, yminE, ymaxE),
+                  norm=norm, origin='lower', zorder=1)
+
+    ax.set_axis_off()
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    if datl is not None:
+        x, y = datl
+        y_norm = y / np.max(y)
+        axes[1].plot(x, y_norm, ls=' ', lw=.5, c='k', zorder=1)
+        colored_line(x, y_norm, y_norm, axes[1], linewidth=2, cmap=cmap, zorder=10)
+        axes[1].set_xticks([])
+        axes[1].set_yticks([])
+
+    if save:
+        fig.savefig(filename, format='pdf', pad_inches=0.1, dpi=dpi, bbox_inches='tight')
+    elif not out:
+        plt.show()
+
+    return fig, axes
+
+def old_imagshow2D(data, datl=None, xlim=(-0.45, 0.45), ylim=(-0.45, 0.45), contour=True, imshow=True,
                cmapint=['#050505', '#f0784d'], xlimE=(-1, 1), ylimE=(-1, 1), 
                levels=4, alpha=0.5, save=False, out=False):
     """
@@ -130,7 +179,7 @@ def ShowPlaneProf(profData, X=None, Y=None, Z=None, indX=None, indY=None, indZ=N
     
     return None
 
-def PlaneProf(prof, xd, yd, cxd, cyd, save=False):
+def PlaneProf(prof, xd, yd, cxd, cyd, save=False, v_vals=None, info=False):
     """ 
     Plot a 2D proyection
     """
@@ -139,10 +188,13 @@ def PlaneProf(prof, xd, yd, cxd, cyd, save=False):
     xdG, ydG = np.meshgrid(xd, yd, indexing='ij')
 
     # Get min/max values for normalization
-    maximo = np.max(prof)
-    minimo = np.min(prof)
+    vmin, vmax = v_vals if v_vals else [np.abs(prof).min(), np.abs(prof).max()]
+    if info:
+        print('vmin, vmax', vmin, vmax)
+    #maximo = np.max(prof)
+    #minimo = np.min(prof)
     
-    cmap, norm = colorBar_and_normaliz(maximo, minimo)  # Ensure function name matches
+    cmap, norm = colorBar_and_normaliz(vmax, vmin)  # Ensure function name matches
     
     ###### Plot 3D profile
     fig = plt.figure(figsize=(9, 6))
