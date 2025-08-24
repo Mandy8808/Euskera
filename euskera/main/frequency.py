@@ -4,7 +4,7 @@
 import numpy as np
 
 ########################################################################################################################
-def main_frequency(psi, t, met=2, info=False, tol=1e-10, guess=1.0):
+def main_frequency(psi, t, met=2, info=False, tol=1e-10, guess=1.0, save=False):
     """
     Extrae componentes principales de psi y calcula su frecuencia usando uno de dos métodos.
     
@@ -23,18 +23,19 @@ def main_frequency(psi, t, met=2, info=False, tol=1e-10, guess=1.0):
     Returns:
         data_component : output de frequMet1 o frequMet2
     """
-    ndim = psi.shape[-1] if psi.ndim == 2 else 1  # assuming psi.shape = (n, d) o (n,)
-    
+    #ndim = psi.shape[-1] if psi.ndim == 2 else 1  # assuming psi.shape = (n, d) o (n,)
+    ndim = len(psi[0])
+
     psit = [[] for _ in range(ndim)]
-    if psi.ndim == 1:  # vector scalar
+    if ndim == 1:  # vector scalar
         for comp in psi:
             psit[0].append(comp[0])
-    elif psi.ndim == 2:  # vector with d components
+    elif ndim == 2 or ndim == 3:  # vector with d components
         for comp in psi:
             for i in range(ndim):
                 psit[i].append(comp[i])
     else:
-        raise ValueError(f"psi debe ser un arreglo 1D o 2D, no {psi.ndim}D")
+        raise ValueError(f"psi debe ser un arreglo 1D o 2D/3D, no {ndim}D")
 
     # taking only the non-null row (vector componets)
     psit = [row for row in psit if not np.all(np.isclose(row, 0, atol=tol))]  # taking only the non-null row (vector componets)
@@ -43,38 +44,8 @@ def main_frequency(psi, t, met=2, info=False, tol=1e-10, guess=1.0):
     if met == 1:
         data_component = frequMet1(t, psit, info=info, guess=guess)
     else:
-        data_component = frequMet2(t, psit, info=info)
+        data_component = frequMet2(t, psit, info=info, save=save)
 
-    return data_component
-
-
-def main_frequency_old(psi, t, met=2, info=False, tol=1e-10, guess=1.0):
-    """
-    """
-    if psi.ndim == 1:
-        psit = [[]]
-        for comp in psi:
-            psit[0].append(comp[0])
-    elif psi.ndim == 2:
-        psit = [[], []]
-        for comp in psi:
-            psit[0].append(comp[0])
-            psit[1].append(comp[1])
-    elif psi.ndim == 3:
-        psit = [[], [], []]
-        for comp in psi:
-            psit[0].append(comp[0])
-            psit[1].append(comp[1])
-            psit[2].append(comp[2])
-        
-    psit = [row for row in psit if not np.all(np.isclose(row, 0, atol=tol))]  # taking only the non-null row (vector componets)
-    
-    if met == 1:
-        print(psit)
-        data_component = frequMet1(t, psit, info=info, guess=guess)
-    else:
-        data_component = frequMet2(t, psit, info=info)    
-    
     return data_component
 
 
@@ -135,7 +106,7 @@ def frequMet1(t_data, psit, guess=1.0, info=False):
         data_component.append([popt, pcov])
     return data_component
 
-def frequMet2(t, psit, info=False):
+def frequMet2(t, psit, info=False, save=False):
     """
     Estimate dominant angular frequency ω from signal(s) using FFT.
     Assumes ψ(t) = A * exp(iωt) or similar periodic form.
@@ -144,6 +115,7 @@ def frequMet2(t, psit, info=False):
     - t: array-like, time vector (assumed uniform spacing)
     - psit: array-like or list of array-like, signal(s)
     - info: bool, print estimated ω for each component
+    - save : Boolean or string indicating whether to save the plot
 
     Returns:
     - List of dominant ω values (rad/s) for each component
@@ -155,17 +127,26 @@ def frequMet2(t, psit, info=False):
     if isinstance(psit[0], (int, float, complex)):
         psit = [psit]
 
+    if info:
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(nrows=1, ncols=len(psit), figsize=(len(psit) * 5, 4), sharex=False, sharey=False,
+                       gridspec_kw=dict(hspace=0.0, wspace=.23))
+        if len(psit) == 1:
+            ax = [ax]
+
     data_component = []
-    for comp in psit:
+    for i, comp in enumerate(psit):
         comp = np.array(comp)
 
-        # FFT
-        psi_fft = np.fft.fft(comp)
-        freq = np.fft.fftfreq(len(t), d=dt)  # frequency in Hz (cycles/sec)
+        # FFT (with zero-padding for better resolution)
+        nfft = 4 * len(comp)
+        psi_fft = np.fft.fft(comp, n=nfft) 
+        freq = np.fft.fftfreq(nfft, d=dt)  # frequency in Hz (cycles/sec)
         omega = 2 * np.pi * freq  # Convert to angular frequency (rad/s)
 
-        # Magnitude spectrum
-        magnitude = np.abs(psi_fft)
+        # Magnitude spectrum (normalized)
+        magnitude = np.abs(psi_fft) / len(comp)
 
         if np.iscomplexobj(comp):
             # For complex signals, consider both positive and negative frequencies
@@ -182,25 +163,30 @@ def frequMet2(t, psit, info=False):
         data_component.append(omega_dominante)
 
         if info:
-            import matplotlib.pyplot as plt
-            
             print(rf"Frequency ω ≈ {omega_dominante:12.10f} rad/s")
             print(rf"Fase estimada: {estimated_phase:.2f} rad")  # {np.degrees(estimated_phase):.2f} grados
-            
-            fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(5, 4), sharex=False, sharey=False,
-                       gridspec_kw=dict(hspace=0.0, wspace=.13))
-            ax.plot(omega, magnitude)
-            ax.plot(omega, magnitude, marker='o', markersize=2, linestyle='None', c='k', mfc='white')
-            ax.vlines(omega_dominante, 0, np.max(magnitude), color='r',
+
+
+            ax[i].plot(omega, magnitude)
+            ax[i].plot(omega, magnitude, marker='o', markersize=2, linestyle='None', c='k', mfc='white')
+            ax[i].vlines(omega_dominante, 0, np.max(magnitude), color='r',
                       linestyle='--', lw=1, label=r'$\omega=%5.4f$ rad/s'%omega_dominante)
-            
-            ax.set_ylim(0, np.max(magnitude)+5)
-            ax.set_xlim(np.min(omega), np.max(omega))
-            ax.set_title('FFT Magnitude Spectrum', fontsize=12)
-            ax.set_ylabel('Magnitude')
-            ax.set_xlabel('Frequency (rad/s)')
-            ax.legend(loc='upper left', frameon=False, fontsize=12)
-            # plt.show()
+
+            ax[i].set_ylim(0, np.max(magnitude)+0.01)
+            ax[i].set_xlim(np.min(omega), np.max(omega))
+            ax[i].set_title('FFT Magnitude Spectrum', fontsize=12)
+            ax[i].set_ylabel('Magnitude')
+            ax[i].set_xlabel('Frequency (rad/s)')
+            ax[i].legend(loc='upper left', frameon=False, fontsize=12)
+    
+    # Save output
+    if info:
+        if save:
+            filename = save if isinstance(save, str) else 'fft_output.pdf'
+            fig.savefig(filename, dpi=300, bbox_inches='tight')
+        plt.tight_layout()
+        plt.show()
+
     return data_component
 
 
