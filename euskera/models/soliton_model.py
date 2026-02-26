@@ -24,8 +24,9 @@ import tools.tools as to
 ###################################################################################################
 
 
-########### Class for the solitonic model
-#############################################################################
+# ============================================================
+# ====================== SOLITON MODEL =======================
+# ============================================================
 class Soli_Model():
     """ 
     Class used for modeling solitons
@@ -58,82 +59,85 @@ class Soli_Model():
         """Allocates memory for the wavefunction psi."""
         # Create aligned zero-filled arrays for the temporal funct components
         # Use pyFFTW if available, otherwise fallback to NumPy
-        
-        if field_components:
-            out = pyfftw.zeros_aligned((field_components, resol, resol, resol), dtype='complex128') if self.pyfftwOpt \
-                else np.zeros((field_components, resol, resol, resol), dtype='complex128')
-        else:
-            out = pyfftw.zeros_aligned((resol, resol, resol), dtype='complex128') if self.pyfftwOpt \
-                else np.zeros((resol, resol, resol), dtype='complex128')
+
+        shape = (resol, resol, resol)
+        if field_components: 
+            shape = (field_components,) + shape
+
+        out = pyfftw.zeros_aligned(shape, dtype='complex128') if self.pyfftwOpt else np.zeros(shape, dtype='complex128')
         return out
 
     def SoliIncProf(self, psi, coord, field_components, parameters_simulation):
         """Computes the initial soliton profiles and updates psi."""
         self.validate_parameters(field_components)
-        Boverlap, Plim, rmax, resol, lambda_value, t0, num_threads = parameters_simulation
+
+        Boverlap, Plim, rmax, resol, lambda_value, num_threads = parameters_simulation
+        set_num_threads(num_threads)
         
         if lambda_value != 0:
             print("WARNING: Alpha values are fixed to 1 due to scaling constraints.")
-            self.parameters_mod["alphas"] = [[1.]] * len(self.parameters_mod["alphas"])
+            self.parameters_mod["alphas"] = [[1.0]] * len(self.parameters_mod["alphas"])
         
         if Boverlap and Plim >= rmax:
             raise ValueError(f"Plim ({Plim}) must be less than rmax ({rmax}).")
         
         if Boverlap and to.overlap(self.parameters_mod["positions"], rmax=rmax, warn=0):
-            print("WARNING: Significant overlap detected between solitons.")
+            print("WARNING: Significant soliton overlap detected.")
         
         funct = self.initialize_wavefunction(resol)
-        psi = psievaluation(funct, psi, self.parameters_mod,
-                            initsolitonInt, coord, field_components, Plim, t0, num_threads)
+
+        # Evalueate the Psi function over the grid
+        #------------------------------------------
+
+        # Zip the configuration parameters
+        conf_names = ["positions", "velocities", "phases", "alphas", "dr"]
+        conf_data = zip(*(self.parameters_mod[name] for name in conf_names))
+
+        # Zip the component parameters with configuration parameters
+        glob_data = zip(self.parameters_mod["profiles"], self.parameters_mod["betas"], conf_data)
+
+        for comp_profiles, beta_values, conf in glob_data:
+            position, velocity, phase, alpha, dr = conf
+            for i in range(field_components):  # running by the components
+                param = (float(beta_values[i]), float(phase[0]), position, float(alpha[0]))
+                psi[i] = build_soliton(funct, psi[i], comp_profiles[i], coord, velocity, param, Plim=Plim, delta_x=float(dr[0]))
         return psi
     
-    
-    def PsiInic(self, field_components, parameters_simulation):
-        """Initializes a soliton field in a 3D grid."""
-        coord, distarray = gd.RealGrid(gridlength=parameters_simulation["gridlength"], resol=parameters_simulation["resol"])
+    def PsiInic(self, field_components, parameters_simulation, grid=None):
+        """Initializes an ell-boson field in a 3D grid"""
+        
+        # Grid generation
+        if grid is None:
+            coord, distarray = gd.RealGrid(gridlength=parameters_simulation["gridlength"], resol=parameters_simulation["resol"])
+        else:
+            coord, distarray = grid
+        
+        # Allocate wavefunction
         psi = self.initialize_wavefunction(parameters_simulation["resol"], field_components)
         
-        # Generate the initial soliton profiles
-        parameters_simulation2 = [parameters_simulation["Boverlap"], parameters_simulation["Plim"], parameters_simulation["rmax"],
-                                  parameters_simulation["resol"], parameters_simulation["lambda_value"], parameters_simulation["t0"],
-                                  parameters_simulation["num_threads"]]
-        psi = self.SoliIncProf(psi, coord, field_components, parameters_simulation2)
+        # Generate initial soliton configuration
+        sim_params = [parameters_simulation["Boverlap"], parameters_simulation["Plim"], parameters_simulation["rmax"],
+                      parameters_simulation["resol"], parameters_simulation["lambda_value"], parameters_simulation["num_threads"]
+                    ]
+        psi = self.ellIncProf(psi, coord, field_components, sim_params)
         
         # Set the number of threads for parallel execution
         ne.set_num_threads(parameters_simulation["num_threads"])
+        
         # Compute the density profile for every component   
-        rho_i = ne.evaluate("real(abs(psi)**2)")
+        rho_i = ne.evaluate("real(psi * conj(psi))") # ("real(abs(psi)**2)")
+        
         return coord + [distarray], [psi, rho_i]
  
 
 ########### Auxiliary Functions Outside of the class)
 #############################################################################
-
-def psievaluation(funct, psi, params, initsolitonInt, coord, field_components, Plim, t0, num_threads):
-    
-    # Zip the configuration parameters
-    conf_parameters_name = ["positions", "velocities", "phases", "alphas", "dr"]
-    dat_conf_Parameters = zip(*(params[i] for i in conf_parameters_name))
-        
-    # Zip the component parameters with configuration parameters
-    dat_glob_Parameters = zip(params["profiles"], params["betas"], dat_conf_Parameters)
-        
-    set_num_threads(num_threads)
-    for comp_profiles, beta_comp_values, conf_param in dat_glob_Parameters:
-        positionCen, comp_veloc, phase, alpha, dr = conf_param
-        for i in range(field_components): # running by the components
-            param = [beta_comp_values[i], phase[0], positionCen, alpha[0]]
-            psi[i] = InitialSolitonsProf(funct, psi[i], comp_profiles[i],
-                                         coord, comp_veloc, param, Plim=Plim, t0=t0, delta_x=dr[0], initsoliton=initsolitonInt)
-    return psi
              
-def InitialSolitonsProf(funct, psi, fInt, grid, velocity, param, initsoliton, Plim=5.6,
-                        t0=0, delta_x=0.00001):
-    r"""
+def build_soliton(funct, psi, radial_profile, 
+                  grid, velocity, param, 
+                  Plim=5.6, delta_x=1e-51):
+    """
     Compute the initial soliton profile:
-    
-    \psi_i(\vec{x}, t) = scal fInt(\sqrt{scal}|\vec{x}-\vec{v}t|) 
-                         \exp(i(- scal \beta t + \vec{v} \cdot \vec{x} - |\vec{v}|^2 t/2))
     
     Parameters:
     - psi: Configuration Wavefunction.
@@ -143,28 +147,18 @@ def InitialSolitonsProf(funct, psi, fInt, grid, velocity, param, initsoliton, Pl
     - velocity: Tuple (velx, vely, velz).
     - param: Tuple (beta, phase, positionCen, alpha).
     - Plim: Utilises soliton profile array out to dimensionless radius (default: 5.6).
-    - t0: Initial time (default 0).
     
     Returns:
     - psi: Wavefunction.
-    - funct: Soliton profile before multiuply by the factor: exp(i(alpha beta t +\vect{v}*\vect{x}-1/2|v|^2 t))
+    - funct: Soliton profile before multiuply by the factor: exp(i(alpha beta t +vect{v}*vect{x}-1/2|v|^2 t))
     """
     
     beta, phase, positionCen, alpha = param 
     xarray, yarray, zarray = grid
     velx, vely, velz = velocity
 
-    # Compute initial soliton shape
-    if t0 == 0:
-        # funct, min_index, min_dist = initsoliton(funct, grid[0], grid[1], grid[2],
-        #                    positionCen, fInt, Plim=Plim, alpha=alpha, delta_x=delta_x)
-        funct = initsoliton(funct, grid[0], grid[1], grid[2],
-                            positionCen, fInt, Plim=Plim, alpha=alpha, delta_x=delta_x)
-    else:
-        pass # poner el caso con dx - v*t
-    
-    # min_pos = np.unravel_index(min_index, funct.shape) 
-    # print(min_pos, min_dist)
+    # Radial
+    funct = initsoliton_kernel(funct, xarray, yarray, zarray, positionCen, radial_profile, Plim=Plim, alpha=alpha, delta_x=delta_x)
     
     ####### Impart velocity to solitons in Galilean invariant way
     funct = ne.evaluate("exp(1j*(alpha*beta*t0 + velx*xarray + vely*yarray + velz*zarray - 0.5*(velx*velx + vely*vely + velz*velz)*t0 + phase)) * funct")
@@ -173,8 +167,8 @@ def InitialSolitonsProf(funct, psi, fInt, grid, velocity, param, initsoliton, Pl
     return psi
 
 @njit(parallel=True)
-def initsolitonInt(funct, xarray, yarray, zarray, position,
-                   fInt, Plim=5.6, alpha=1., delta_x=0.00001):
+def initsoliton_kernel(funct, xarray, yarray, zarray, position,
+                   radial_profile, Plim=5.6, alpha=1., delta_x=1e-5):
     """
     Initializes a soliton profile in a 3D grid using Numba optimization.
     
@@ -189,80 +183,35 @@ def initsolitonInt(funct, xarray, yarray, zarray, position,
     Returns:
     - Updated `funct` array with soliton values.
     """
-    rmax_sq = Plim ** 2  # Precompute squared max radius
+    rmax_sq = Plim * Plim
+    inv_delta = 1.0 / delta_x
+    max_index = len(radial_profile) - 1
+
+    nx, ny, nz = funct.shape
     
-    # min_dat = np.zeros(funct.shape, dtype=np.float64)  # Use fixed type arrays
-    
-    for i in prange(funct.shape[0]):  # Use parallel execution
-        for j in range(funct.shape[1]):
-            for k in range(funct.shape[2]):
-                dx = xarray[i, 0, 0] - position[0]
-                dy = yarray[0, j, 0] - position[1]
+    for i in prange(nx):  # Use parallel execution
+        dx = xarray[i, 0, 0] - position[0]
+        for j in range(ny):
+            dy = yarray[0, j, 0] - position[1]
+            for k in range(nz):
                 dz = zarray[0, 0, k] - position[2]
                 
-                dist_sq = dx * dx + dy * dy + dz * dz  # Squared distance                
-                # min_dat[i, j, k] = dist_sq
-                # print(dist_sq, rmax_sq)
-                if alpha is not None:
-                    scaled_dist_sq = alpha * dist_sq
-                    if scaled_dist_sq <= rmax_sq:
-                        index2 = int(np.sqrt(scaled_dist_sq) / delta_x)
-                        funct[i, j, k] = alpha * fInt[index2]
-                    else:
-                        funct[i, j, k] = 0
+                dist_sq = dx * dx + dy * dy + dz * dz  # Squared distance
+                scaled_dist_sq = alpha * dist_sq if alpha is not None else dist_sq
+
+                if scaled_dist_sq <= rmax_sq:
+                    r = np.sqrt(scaled_dist_sq)
+                    index2 = int(r * inv_delta)
+
+                    if index2 > max_index:
+                        index2 = max_index
+
+                    funct[i, j, k] = (
+                        alpha * radial_profile[index2]
+                        if alpha is not None
+                        else radial_profile[index2]
+                    )
                 else:
-                    if dist_sq <= rmax_sq:
-                        index2 = int(np.sqrt(dist_sq) / delta_x)
-                        funct[i, j, k] = fInt[index2]
-                    else:
-                        funct[i, j, k] = 0
-    
-    # Identifying the min_pos, and min_dist
-    # min_index = np.argmin(min_dat)
-    # min_dist = alpha * np.min(min_dat) if alpha else np.min(min_dat)
-    
-    return funct #, min_index, min_dist
+                    funct[i, j, k] = 0.0 
 
-def initsoliton(funct, xarray, yarray, zarray, position, fInt, Plim=5.6, delta_x=None, alpha=None):
-    """
-    Initializes a soliton profile in a 3D grid. Without numba optimization
-    
-    Note that we compute the distance of every gridpoint from the centre of the soliton, 
-    not to calculate the distance of the soliton from the centre of the grid
-
-    Parameters:
-    - funct: 3D NumPy array to store the soliton function values.
-    - xarray, yarray, zarray: 3D NumPy arrays representing spatial coordinates.
-    - position: Tuple or array (x, y, z) indicating the soliton center.
-    - fInt: Function that computes the soliton profile.
-    - Plim: Utilises soliton profile array out to dimensionless radius (default: 5.6).
-    - alpha: Scaling factor (default None).
-
-    Returns:
-    - Updated `funct` array with soliton values.
-    """
-    
-    if not isinstance(position, (list, tuple, np.ndarray)) or len(position) != 3:
-        raise ValueError("position must be a list, tuple, or NumPy array of length 3.")
-    
-    for index in np.ndindex(funct.shape):
-        dx = xarray[index[0], 0, 0] - position[0]
-        dy = yarray[0, index[1], 0] - position[1]
-        dz = zarray[0, 0, index[2]] - position[2]
-        
-        dist_sq = dx**2 + dy**2 + dz**2  # Squared distance
-        
-        if alpha:
-            scaled_dist_sq = alpha * dist_sq
-            if scaled_dist_sq <= Plim**2:  # Compare squared values to avoid sqrt
-                funct[index] = alpha * fInt(np.sqrt(scaled_dist_sq))
-            else:
-                funct[index] = 0
-        else:
-            if dist_sq <= Plim**2:
-                funct[index] = fInt(np.sqrt(dist_sq))
-            else:
-                funct[index] = 0
-        
     return funct
-    
