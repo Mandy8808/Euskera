@@ -13,16 +13,33 @@ import models.ell_model as ell_m
 
 ###################################################################################################
 
-########### Models Class (to choosed the model)
+# Registry of available models
+#############################################################################
+
+MODEL_REGISTRY = {
+    "soliton": sm.Soli_Model,
+    "gaussian_function": gm.Gaussiana_Model,
+    "ell_boson": ell_m.ell_Model,
+}
+
+########### Models Class (to choosed the model) #############################
 #############################################################################
 class Models():
     """ 
-    Main class used to choosed the model
+    Main class used to composable physical models
+
+    All models must implement:
+
+        apply(field_components, parameters_simulation,
+              grid_data=None, psi=None)
+
+    and return:
+
+        grid_data, psi, rho_i
     """
     
     # Class attribute
-    
-    ###################################################################################################
+    ###################
 
     def __init__(self, info=False, **kwargs):
         """
@@ -32,11 +49,13 @@ class Models():
         - info (bool): Whether to print initialization details.
         - kwargs (dict): Dictionary where keys are model names, and values are lists of parameter update dictionaries.
         """
+        if not kwargs: raise ValueError("At least one model must be specified.")
+
         # extracting the names
         self.name = [name.lower() for name in kwargs.keys()]
         
         # Validate model/s existence and creating parameter-empty models dictionary
-        self.parameters_mod = {name: dict_names(name) for name in self.name}
+        dic_parameters = {name: model_parameters(name) for name in self.name}
         
         # Creating type-data model dictionary
         models_type = {name: dict_type(name) for name in self.name}
@@ -44,58 +63,45 @@ class Models():
         # Checking type and updating parameters
         for name in self.name:
             self.parameters_mod[name] = update_parameters(kwargs[name],  # parameters_update
-                                                          self.parameters_mod[name],  # modelo_parameters
+                                                          dic_parameters[name],  # modelo_parameters
                                                           models_type[name])  # model_type
         # Instance attributes
         self.model = {
-            "soliton": sm.Soli_Model(self.parameters_mod.get("soliton", {})),  # Create an instance of soliton_model
-            "gaussian_function": gm.Gaussiana_Model(self.parameters_mod.get("gaussian_function", {})), # Create an instance of gaussian_model
-            "ell_boson": ell_m.ell_Model(self.parameters_mod.get("ell_boson", {})) # Create an instance of gaussian_model
+            name: MODEL_REGISTRY[name](self.parameters_mod.get(name, {}))
+            for name in self.name
         }
-        
+
         if info:
-            print(f"Models initialized: {self.name} with parameters: {self.parameters_mod}")
-            
+            print(f"Models initialized in order: {self.name}")
+            print(f"Parameters: {self.parameters_mod}")
             
     def call_model(self, field_components, parameters_simulation):
         """
-        Calls the appropriate model and returns computed values.
+        Calls the appropriate model sequentially applies models in user-defined order..            
 
         Parameters:
             field_components: number of the components of the field.
             parameters_simulation: Simulation parameters.
 
         Returns:
-            tuple: Arrays representing computed field and its density.
+            grid_data, [psi, rho_i]
         """
-        grid = False
-        xarray = yarray = zarray = distarray = psi = rho_i = None
-    
-        if "soliton" in self.name:
-            model_self = self.model["soliton"]
-            [xarray, yarray, zarray, distarray], [psi, rho_i] = model_self.PsiInic(field_components, parameters_simulation)
-            grid = True
-            
-        if "gaussian_function" in self.name:
-            model_self = self.model["gaussian_function"]
-            if grid and psi is not None:
-                [psi, rho_i] = model_self.GaussSolProf(field_components, parameters_simulation, psi, xarray, yarray, zarray)
-            else:
-                [xarray, yarray, zarray, distarray], [psi, rho_i] = model_self.GaussSolProf(field_components, parameters_simulation,
-                                                                                            psi, xarray, yarray, zarray)
-                grid = True
-                
-        #if "ell_boson" in self.name:
-        #    model_self = self.model["ell_boson"]
-        #    if grid and psi is not None:
-        #        grid_data = [xarray, yarray, zarray, distarray] 
-        #        [psi, rho_i] = model_self.PsiInic(field_components, parameters_simulation, grid=grid_data)
-        #    else:
-        #        [xarray, yarray, zarray, distarray], [psi, rho_i] = model_self.PsiInic(field_components, parameters_simulation)
-        #        grid = True
-            
-        return [xarray, yarray, zarray, distarray], [psi, rho_i]
-    
+
+        grid_data = None
+        psi = None
+        rho_i = None
+
+        for name in self.name:
+            model_self = self.model[name]
+
+            grid_data, psi, rho_i = model_self.apply(
+                field_components,
+                parameters_simulation,
+                grid_data=grid_data,
+                psi=psi
+            )
+        
+        return grid_data, [psi, rho_i]
     
     
 ########### Extra functions (Outside of the class)
@@ -114,8 +120,7 @@ def update_parameters(parameters_update, modelo_parameters, model_type):
         dict: Updated modelo_parameters.
     """
     
-    if not isinstance(parameters_update, (list, tuple)):
-        raise TypeError(f"Expected a list or tuple of parameters_update, got {type(parameters_update)}.")
+    if not isinstance(parameters_update, (list, tuple)): raise TypeError(f"Expected a list or tuple of parameters_update, got {type(parameters_update)}.")
     
     for parameters_update_temp in parameters_update:
         if not isinstance(parameters_update_temp, dict):
@@ -124,41 +129,28 @@ def update_parameters(parameters_update, modelo_parameters, model_type):
         for name, element_update in parameters_update_temp.items():
             expected_type = model_type.get(name)
                 
-            if expected_type is None:
-                raise ValueError(f"Unknown parameter: '{name}' is not a valid model parameter.")
+            if expected_type is None: raise ValueError(f"Unknown parameter: '{name}' is not a valid model parameter.")
+            if not isinstance(element_update, expected_type): raise TypeError(f"The parameter '{name}' must be of type {expected_type}, but got {type(element_update)}.")
 
-            if not isinstance(element_update, expected_type):
-                raise TypeError(f"The parameter '{name}' must be of type {expected_type}, but got {type(element_update)}.")
-
-            modelo_parameters[name].append(element_update)  # Append new value
+            modelo_parameters.setdefault(name, []).append(element_update)
     
     return modelo_parameters
 
-def dict_names(name):
+def model_parameters(name):
     """
-    Returns a dictionary of default parameters based on the given model name.
+    Returns the corresponding parameters based on the given model name.
     """
-    
-    # Creating empty model dictionaries
-    param_name_gauss = ("positions_gaussiana", "amplitude", "sigma")
-    dict_gauss_func = {key: [] for key in param_name_gauss}
-    
-    param_name_soliton = ("profiles", "positions", "velocities", "betas", "phases", "alphas", "dr")
-    dict_soliton = {key: [] for key in param_name_soliton}
-    
-    # Mapping model names to their respective type dictionaries
+
     default_parameters = {
-        "soliton": dict_soliton,
-        "gaussian_function": dict_gauss_func,
-        "ell_boson": dict_soliton
+        "soliton": ("profiles", "positions", "velocities", "betas", "phases", "alphas", "dr"),
+        "gaussian_function": ("positions_gaussiana", "amplitude", "sigma"),
+        "ell_boson": ("profiles", "positions", "velocities", "betas", "phases", "alphas", "dr", "ell")
     }
-    dict_prop = default_parameters.get(name)
+    parameters = default_parameters.get(name)
     
     # cheking
-    if dict_prop is None:
-        raise ValueError(f"Unknown model. Available models: {list(default_parameters.keys())}.")
-    
-    return dict_prop
+    if parameters is None: raise ValueError(f"Unknown model. Available models: {list(default_parameters.keys())}.")
+    return parameters
 
 def dict_type(name):
     """
@@ -176,19 +168,22 @@ def dict_type(name):
     dict_gauss_func_type.update({
         "amplitude": (int, float)
     })
+
+    dict_ell_boson_type = {key: (tuple, list) for key in param_soliton}
+    dict_ell_boson_type.update({
+        "ell": (int,)
+    })
     
     # Mapping model names to their respective type dictionaries
     default_parameters_type = {
         "soliton": dict_soliton_type,
         "gaussian_function": dict_gauss_func_type,
-        "ell_boson": dict_soliton_type
+        "ell_boson": dict_ell_boson_type
     }
     dict_prop = default_parameters_type.get(name)
     
     # checking
-    if dict_prop is None:
-        raise ValueError(f"Unknown model. Available models: {list(default_parameters_type.keys())}.")
-    
+    if dict_prop is None: raise ValueError(f"Unknown model. Available models: {list(default_parameters_type.keys())}.")
     return dict_prop
 
 def solitonProf(field_components, parameters_sol, simulation_parameters):
@@ -196,9 +191,12 @@ def solitonProf(field_components, parameters_sol, simulation_parameters):
     Compute the scalar field using the soliton model given a radial profile.
     """
     model_used = Models(**parameters_sol)
-    (xarray, yarray, zarray, _), (_, rho_i) = model_used.call_model(field_components=field_components,
-                                                                            parameters_simulation=simulation_parameters)
+    grid_data, (_, rho_i) = model_used.call_model(field_components=field_components,
+                                                                    parameters_simulation=simulation_parameters)
+    
+    xarray, yarray, zarray, _ = grid_data
     
     import numexpr as ne
     rho = ne.evaluate("sum(rho_i, axis=0)")
+    
     return  (xarray, yarray, zarray), rho

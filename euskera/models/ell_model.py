@@ -68,7 +68,7 @@ class ell_Model():
         out = pyfftw.zeros_aligned(shape, dtype='complex128') if self.pyfftwOpt else np.zeros(shape, dtype='complex128')
         return out
 
-    def ellIncProf(self, psi, coord, field_components, parameters_simulation):
+    def add_ell_boson(self, psi, coord, field_components, parameters_simulation):
         """Computes the initial ell-boson profiles and updates psi."""
         self.validate_parameters(field_components)
 
@@ -87,9 +87,7 @@ class ell_Model():
         
         funct = self.initialize_wavefunction(resol)
         
-        # Evalueate the Psi function over the grid
-        #------------------------------------------
-        
+        # Evalueate the Psi function over the grid      
         # Zip the configuration parameters
         conf_names = ["positions", "velocities", "phases", "alphas", "dr", "ell"]
         conf_data = zip(*(self.parameters_mod[name] for name in conf_names))
@@ -113,23 +111,36 @@ class ell_Model():
                 psi[i] = build_soliton(funct, psi[i], comp_profiles[i], coord, velocity, param, ell, m, Plim=Plim, delta_x=dr[0])
         return psi
     
-    def PsiInic(self, field_components, parameters_simulation, grid=None):
+    def apply(self, field_components, parameters_simulation, grid_data=None, psi=None):
         """Initializes an ell-boson field in a 3D grid"""
-        
+
+        if (psi is None) != (grid_data is None): raise ValueError("psi and grid arrays must be both provided or both None")
+
+        build_grid = psi is None
+
         # Grid generation
-        if grid is None:
-            coord, distarray = gd.RealGrid(gridlength=parameters_simulation["gridlength"], resol=parameters_simulation["resol"])
+        if build_grid:
+            # Extract simulation parameters from dictionary
+            resol = parameters_simulation.get("resol", 128)
+            gridlength = parameters_simulation.get("gridlength", 1.0)
+
+            # Generate spatial grids and distance array
+            [xarray, yarray, zarray], distarray = gd.RealGrid(gridlength=gridlength, resol=resol)
+            grid_data = [xarray, yarray, zarray, distarray]
+
+            # Allocate wavefunction
+            psi = self.initialize_wavefunction(parameters_simulation["resol"], field_components)
         else:
-            coord, distarray = grid
+            xarray, yarray, zarray, distarray = grid_data
         
-        # Allocate wavefunction
-        psi = self.initialize_wavefunction(parameters_simulation["resol"], field_components)
-        
-        # Generate initial soliton configuration
+        # Apply Soliton
+        # Puting the soliton profiles on Psi
+        coord = grid_data[:3]
         sim_params = [parameters_simulation["Boverlap"], parameters_simulation["Plim"], parameters_simulation["rmax"],
                       parameters_simulation["resol"], parameters_simulation["lambda_value"], parameters_simulation["num_threads"]
                     ]
-        psi = self.ellIncProf(psi, coord, field_components, sim_params)
+        
+        psi = self.add_ell_boson(psi, coord, field_components, sim_params)
         
         # Set the number of threads for parallel execution
         ne.set_num_threads(parameters_simulation["num_threads"])
@@ -137,8 +148,7 @@ class ell_Model():
         # Compute the density profile for every component   
         rho_i = ne.evaluate("real(psi * conj(psi))") # ("real(abs(psi)**2)")
         
-        return coord + [distarray], [psi, rho_i]
- 
+        return grid_data, psi, rho_i
 
 ########### Auxiliary Functions Outside of the class)
 
