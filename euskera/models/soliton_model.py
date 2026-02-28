@@ -147,7 +147,7 @@ class Soli_Model():
              
 def build_soliton(funct, psi, radial_profile, 
                   grid, velocity, param, 
-                  Plim=5.6, delta_x=1e-51):
+                  Plim=5.6, delta_x=1e-51, t0=0):
     """
     Compute the initial soliton profile:
     

@@ -108,7 +108,7 @@ class ell_Model():
             # Loop over m components
             for i, m in enumerate(m_values):
                 param = (float(beta_values[i]), float(phase[0]), position, float(alpha[0]))
-                psi[i] = build_soliton(funct, psi[i], comp_profiles[i], coord, velocity, param, ell, m, Plim=Plim, delta_x=dr[0])
+                psi[i] = build_ell(funct, psi[i], comp_profiles[i], coord, velocity, param, ell, m, Plim=Plim, delta_x=dr[0])
         return psi
     
     def apply(self, field_components, parameters_simulation, grid_data=None, psi=None):
@@ -154,9 +154,9 @@ class ell_Model():
 
 # Wavefunction builder
 # ========================
-def build_soliton(funct, psi, radial_profile,
+def build_ell(funct, psi, radial_profile,
                   grid, velocity, param, l, m,
-                  Plim=5.6, delta_x=1e-51):
+                  Plim=5.6, delta_x=1e-51, t0=0):
     """
     Wavefunction builder
     
@@ -183,7 +183,7 @@ def build_soliton(funct, psi, radial_profile,
     Ylm = compute_sph_harm_grid(l, m, xarray, yarray, zarray, positionCen)
 
     # Radial + angular kernel
-    funct = initsoliton_kernel( funct, xarray, yarray, zarray, positionCen, radial_profile, Ylm, Plim, alpha, delta_x)
+    funct = initell_kernel( funct, xarray, yarray, zarray, positionCen, radial_profile, Ylm, Plim, alpha, delta_x)
     
     ####### Impart velocity to solitons in Galilean invariant way
     funct = ne.evaluate("exp(1j*(alpha*beta*t0 + velx*xarray + vely*yarray + velz*zarray - 0.5*(velx*velx + vely*vely + velz*velz)*t0 + phase)) * funct")
@@ -225,7 +225,7 @@ def compute_sph_harm_grid(l, m, xarray, yarray, zarray, position):
 # Numba Kernel (radial + angular combined)
 # ===========================================
 @njit(parallel=True, fastmath=True)
-def initsoliton_kernel(funct, xarray, yarray, zarray, position,
+def initell_kernel(funct, xarray, yarray, zarray, position,
                    radial_profile, Ylm,
                    Plim=5.6, alpha=1., delta_x=1e-5):
     """

@@ -1,22 +1,21 @@
 # modulo/models/__init__.py
 
-from .models import Models, solitonProf
-from .soliton_model import Soli_Model, InitialSolitonsProf, initsolitonInt, initsoliton
-from .ell_model import ell_Model
-from .gaussiana_model import Gaussiana_Model, gaussian, initGaussianInt
-#from .modelo_gaussiana import gaussian, initGaussianInt, GaussSolProf
+from .models import Models, update_parameters, dict_type, solitonProf
+from .soliton_model import Soli_Model, build_soliton, initsoliton_kernel
+from .ell_model import ell_Model, build_ell, compute_sph_harm_grid, initell_kernel
+from .gaussiana_model import Gaussiana_Model, build_1d_gaussian, add_gaussian
 
 
 __all__ = [
     # main
-    'Models', 'solitonProf',
+    'Models', 'update_parameters', 'dict_type', 'solitonProf',
     
     # soliton
-    'Soli_Model', 'InitialSolitonsProf', 'initsolitonInt', 'initsoliton',
+    'Soli_Model', 'build_soliton', 'initsoliton_kernel',
 
     # ell_boson
-    'ell_Model',
+    'ell_Model', 'build_ell', 'compute_sph_harm_grid', 'initell_kernel', 
     
     # guassiana
-    'Gaussiana_Model', 'gaussian', 'initGaussianInt'
+    'Gaussiana_Model', 'build_1d_gaussian', 'add_gaussian'
     ]

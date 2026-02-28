@@ -54,16 +54,13 @@ class Models():
         # extracting the names
         self.name = [name.lower() for name in kwargs.keys()]
         
-        # Validate model/s existence and creating parameter-empty models dictionary
-        dic_parameters = {name: model_parameters(name) for name in self.name}
-        
         # Creating type-data model dictionary
         models_type = {name: dict_type(name) for name in self.name}
         
         # Checking type and updating parameters
+        self.parameters_mod = {} 
         for name in self.name:
             self.parameters_mod[name] = update_parameters(kwargs[name],  # parameters_update
-                                                          dic_parameters[name],  # modelo_parameters
                                                           models_type[name])  # model_type
         # Instance attributes
         self.model = {
@@ -107,13 +104,12 @@ class Models():
 ########### Extra functions (Outside of the class)
 #############################################################################
 
-def update_parameters(parameters_update, modelo_parameters, model_type):
+def update_parameters(parameters_update, model_type):
     """
-    Updates the given modelo_parameters dictionary with new values from parameters_update.
+    Give the modelo_parameters dictionary from parameters_update.
     
     Parameters:
         parameters_update (list of dicts): New values to update.
-        modelo_parameters (dict): Current parameters dictionary.
         model_type (dict): Expected types for each parameter.
     
     Returns:
@@ -122,6 +118,7 @@ def update_parameters(parameters_update, modelo_parameters, model_type):
     
     if not isinstance(parameters_update, (list, tuple)): raise TypeError(f"Expected a list or tuple of parameters_update, got {type(parameters_update)}.")
     
+    modelo_parameters = {}
     for parameters_update_temp in parameters_update:
         if not isinstance(parameters_update_temp, dict):
             raise TypeError(f"Each item in parameters_update must be a dictionary, got {type(parameters_update_temp)}.")
@@ -135,22 +132,6 @@ def update_parameters(parameters_update, modelo_parameters, model_type):
             modelo_parameters.setdefault(name, []).append(element_update)
     
     return modelo_parameters
-
-def model_parameters(name):
-    """
-    Returns the corresponding parameters based on the given model name.
-    """
-
-    default_parameters = {
-        "soliton": ("profiles", "positions", "velocities", "betas", "phases", "alphas", "dr"),
-        "gaussian_function": ("positions_gaussiana", "amplitude", "sigma"),
-        "ell_boson": ("profiles", "positions", "velocities", "betas", "phases", "alphas", "dr", "ell")
-    }
-    parameters = default_parameters.get(name)
-    
-    # cheking
-    if parameters is None: raise ValueError(f"Unknown model. Available models: {list(default_parameters.keys())}.")
-    return parameters
 
 def dict_type(name):
     """

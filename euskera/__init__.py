@@ -22,10 +22,10 @@ from .plots.configuration import general, FigParam, LineParam, axesParam, labelP
 from .plots.plot_tools import colorBar_and_normaliz, ShowPlaneProf, PlaneProf, Plot3DCorrProf, imagshow2D, colored_line
 
 # Models
-from .models.models import Models, solitonProf
-from .models.soliton_model import Soli_Model, InitialSolitonsProf, initsolitonInt, initsoliton
-from .models.ell_model import ell_Model
-from .models.gaussiana_model import Gaussiana_Model, gaussian, initGaussianInt
+from .models.models import Models, update_parameters, dict_type, solitonProf
+from .models.soliton_model import Soli_Model, build_soliton, initsoliton_kernel
+from .models.ell_model import ell_Model, build_ell, compute_sph_harm_grid, initell_kernel
+from .models.gaussiana_model import Gaussiana_Model, build_1d_gaussian, add_gaussian
 
 # Define available imports
 __all__ = [
@@ -33,7 +33,7 @@ __all__ = [
     'evolve', 'PKP',
     'RealGrid', 'KGrid', 'meshgrid',
     'Upotential',
-    'Conserv', 'Npar', 'Energ, ''centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi',
+    'Conserv', 'Npar', 'Energ', 'centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi',
     'main_frequency', 'frequMet1', 'frequMet2',
     
     # Video visualization
@@ -48,17 +48,17 @@ __all__ = [
     
     # Plotting
     'general', 'FigParam', 'LineParam', 'axesParam', 'labelParam', 'legendParam', 'fontParam',
-    'colorBar_and_normaliz', 'ShowPlaneProf', 'PlaneProf', 'Plot3DCorrProf', 'imagshow2D', 'colored_line'
+    'colorBar_and_normaliz', 'ShowPlaneProf', 'PlaneProf', 'Plot3DCorrProf', 'imagshow2D', 'colored_line',
     
-    # Models
-    'Models', 'solitonProf',
+    # main
+    'Models', 'update_parameters', 'dict_type', 'solitonProf',
     
     # soliton
-    'Soli_Model', 'InitialSolitonsProf', 'initsolitonInt', 'initsoliton',
+    'Soli_Model', 'build_soliton', 'initsoliton_kernel',
 
     # ell_boson
-    'ell_Model',
+    'ell_Model', 'build_ell', 'compute_sph_harm_grid', 'initell_kernel', 
     
     # guassiana
-    'Gaussiana_Model', 'gaussian', 'initGaussianInt'
+    'Gaussiana_Model', 'build_1d_gaussian', 'add_gaussian'
 ]
