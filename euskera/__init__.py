@@ -26,6 +26,7 @@ from .models.models import Models, update_parameters, dict_type, solitonProf
 from .models.soliton_model import Soli_Model, build_soliton, initsoliton_kernel
 from .models.ell_model import ell_Model, build_ell, compute_sph_harm_grid, initell_kernel
 from .models.gaussiana_model import Gaussiana_Model, build_1d_gaussian, add_gaussian
+from .models.proca_model import proca_Model, build_proca, compute_polarization_vec, initproca_kernel
 
 # Define available imports
 __all__ = [
@@ -60,5 +61,8 @@ __all__ = [
     'ell_Model', 'build_ell', 'compute_sph_harm_grid', 'initell_kernel', 
     
     # guassiana
-    'Gaussiana_Model', 'build_1d_gaussian', 'add_gaussian'
+    'Gaussiana_Model', 'build_1d_gaussian', 'add_gaussian',
+    
+    # proca
+    'proca_Model', 'build_proca', 'compute_polarization_vec', 'initproca_kernel'
 ]

@@ -1,376 +1,288 @@
+# euskera v1.0
+# video make file
 
-import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+from matplotlib.collections import LineCollection
 from IPython.display import HTML
-
-# Get the parent directory dynamically
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ""))
-sys.path.append(parent_dir)
 
 import plots as pl
 
-
-########### Make a video
 #############################################################################
 class Visualization:
 
-    def __init__(self, address, figData, solAnalit=None, info=False):
-        if info:
-            print(f"Usando dirección {address}")
-        
-        # Atributos de instancia
+    # Constructor
+    #########################################################################
+    def __init__(self, address, figData, info=False):
         self.address = address
-        self.figData = figData
-        #self.solAnalit = solAnalit
+        self.fig, ax = figData
+        self.ax = np.atleast_1d(ax)  # Always array-safe
 
-    # Method
-    
-    ### Globals
+        # Internal state
+        self._frame_quiver = None
+        self._gxi = None
+        self._gyi = None
+        self._step = None
+        self._line_profiles = {'x': None, 'y': None, 'z': None}
+        self._line_collections = {'x': None, 'y': None, 'z': None}
+
+        if info: print(f"Using address {address}")
+
+    # Data loading
+    #########################################################################
     def loadData(self, address=None):
-        """
-        Load the data from the self.address (default) or from a specify address (default None)
-        """
-        try:
-            # Use the provided address or fall back to self.direccion
-            file_path = address if address else getattr(self, "address", None)
-        
-            if not file_path:
-                raise ValueError("No valid address provided to load the data.")
-        
-            if not os.path.exists(file_path):
-                raise FileNotFoundError(f"The file '{file_path}' does not exist.")
-        
-            array_data = np.load(file_path)
-            return array_data
-    
-        except Exception as e:
-            print(f"Error loading data: {e}")
-            return None
-    
-    def extDataSave(self, nameP, name2=False,
-                    coord=['x', 'y', 'z'], namegrid='end_grid.npz',
+        """Load the data from the self.address (default) or from a specify address (default None)"""
+
+        file_path = address if address else self.address
+        if not file_path: raise ValueError("No valid address provided.")
+        if not os.path.exists(file_path): raise FileNotFoundError(f"File '{file_path}' does not exist.")
+        return np.load(file_path, allow_pickle=True)
+
+    def extDataSave(self, nameL, nameS=None, coord=('x', 'y', 'z'), namegrid='end_grid.npz',
                     format='.npz', address=None):
-        """ 
-        Extracts data from the specified grid file and loads additional data.
+        """Extracts data from the specified grid file and loads additional data."""
 
-        Parameters:
-        - coord: List of coordinate labels (default: ['x', 'y', 'z']).
-        - namegrid: Name of the grid file to load.
-        - address: Directory where the grid file is stored.
-
-        Returns:
-        - A list containing the grid data (as a NumPy array) and additional loaded data.
-        """
-
-        file_path = address if address else getattr(self, "address", None)
-        if not file_path:
-            raise ValueError("No valid address provided to load the data.")
-        
-        address_coord = os.path.join(file_path, namegrid)
+        base_path = address if address else self.address
+        if not base_path: raise ValueError("No valid address provided.")
 
         # Load grid data
-        grid_temp = self.loadData(address_coord)
-        try:
-            grid = np.array([grid_temp[axe] for axe in coord])
-        except KeyError as e:
-            raise KeyError(f"Missing expected coordinate key in grid data: {e}")
+        grid_path = os.path.join(base_path, namegrid)
+        grid_temp = self.loadData(grid_path)
+        grid = np.array([grid_temp[axe] for axe in coord])
 
-        # Load additional array data
-        address_coord = os.path.join(file_path, 'end_' + nameP + format)
-        array_data = self.loadData(address_coord)
-        
-        if name2:
-            address_coord = os.path.join(file_path, 'end_' + name2 + format)
-            array_data2 = self.loadData(address_coord)
-            
-        return [grid, array_data, array_data2] if name2 else [grid, array_data]
-    
+        # Load primary data
+        array_dataL = None
+        if nameL:
+            data_path = os.path.join(base_path, f'end_{nameL}{format}')
+            array_dataL = self.loadData(data_path)
 
-    #### 2D video
-    
-    def imagshow02D(self, ax, data, datl, xlim=(-1, 1), ylim=(-1, 1), 
-                    cmapint=['#050505', '#f0784d'], xlimE=(-1, 1),
-                    ylimE=(-1, 1), show=False, text=None):
-        
-        # Unpacking input data
-        perf2d, t0 = data
-        perf2d = perf2d.T
-        
-        perf, xi, _ = datl
-        
-        [xminE, xmaxE], [yminE, ymaxE] = xlimE, ylimE
-        vmax = np.abs(perf2d).max()
-        vmin = np.abs(perf2d).min()
-    
-        # Convert color list to colormap
-        cmap, norm = pl.colorBar_and_normaliz(vmax, vmin, cmapStr=False, cmapint=cmapint)
-        
-        frame = ax[0].imshow(perf2d, cmap=cmap, extent=(xminE, xmaxE, yminE, ymaxE), norm=norm, origin='lower', zorder=1)
-        
-        perfmax = max(perf) if np.any(perf) else 1  # Avoid division by zero
-        frame1, = ax[1].plot(xi, perf/perfmax, ls=' ', lw=.5, c='k', zorder=1)
-        
-        color = perf/perfmax
-        frame2 = pl.colored_line(xi, perf/perfmax, color, ax[1], add=False, linewidth=2, cmap=cmap, zorder=10)
-        ax[1].add_collection(frame2)
-        
-        # Compute text position
-        x_pos = xlim[0] + (xlim[1] - xlim[0]) / 2
-        y_pos = ylim[0] + (ylim[1] - ylim[0]) / 2 + 0.4
-        tframe = ax[0].text(x_pos, y_pos, s=r'time = $%3.1f$' % t0, c='white', fontsize='small')
-        
-        if text:
-            ax[0].text(xminE+x_pos/2, y_pos, s=text, c='white', fontsize='small')
-            
-        ax[0].set_axis_off()
-        ax[0].set_xlim(xlim)
-        ax[0].set_ylim(ylim)
-        ax[1].set_xticks([])
-        ax[1].set_yticks([])
-          
-        # Show plot if requested
-        if show:
-            plt.show() 
-        
-        return ax, frame, frame1, frame2, tframe, cmap, perfmax
-    
-    
-    def frame02D(self, data, struc, xlim=None, ylim=None, show=False, plot2D="density"):
-        """ 
-        Creates the first frame of a 2D plot.
+        array_dataS = None
+        if nameS:
+            data_path2 = os.path.join(base_path, f'end_{nameS}{format}')
+            array_dataS = self.loadData(data_path2)
 
-        Parameters:
-        - data: Tuple containing (performance values, x-coordinates, initial time t0).
-        - struc: Tuple containing (xmin, xmax, linestyle, linewidth, color).
-        - xlim: Tuple specifying x-axis limits (default: None).
-        - ylim: Tuple specifying y-axis limits (default: None).
-        - show: Boolean flag to display the plot (default: False).
+        return grid, array_dataL, array_dataS
 
-        Returns:
-        - fig, ax, frame, tframe: The figure, axes, plot line, and text object.
-        """
-        # Unpacking input data
-        try:
-            perf, xi, t0 = data
-            ls, lw, color = struc
-        except ValueError:
-            raise ValueError("Invalid input: Ensure 'data' has (perf, xi, t0) and 'struc' has (ls, lw, color).")
-    
-        # Ensure self.figData exists
-        if not hasattr(self, 'figData'):
-            raise AttributeError("self.figData is not defined. Ensure it's initialized before calling this function.")
-        ###############################
+    # Polarization
+    #########################################################################
+    def _compute_polarization(self, psi2d):
+        """Compute the density and polarization vectors from the 2D wavefunction."""
 
-        fig, ax = self.figData
-        frame = []
-        temp_data = [perf] if perf.ndim == 1 else perf
-        for ind, per in enumerate(temp_data):
-            if plot2D == "density":
-                # Density plot must be 1D:
-                if perf.ndim != 1:
-                    raise ValueError(f"The data associated with '{plot2D}' must be 1D.")
-                temp, = ax.plot(xi, per, ls=ls, c=color[ind], lw=lw)
+        rho_i = np.real(psi2d * np.conj(psi2d))
+        density = np.sum(rho_i, axis=0)
+
+        threshold = 0.001 * density.max()  #  # 0.1% of maximum density
+        mask = density > threshold
+
+        inv_sqrt = np.zeros_like(density)
+        inv_sqrt[mask] = 1.0 / np.sqrt(density[mask])
+
+        Ux = np.real(psi2d[0]) * inv_sqrt
+        Uy = np.real(psi2d[1]) * inv_sqrt
+        return density, Ux, Uy
+
+    # First frame creation
+    #########################################################################
+    def imagshow02D(self, dataS, dataL, xlim, ylim, cmapint, plot2D):
+        """Create the initial frame for the 2D performance and 1D profile."""
+
+        panel = 0
+        # -------- 2D surface --------
+        frame = None
+        if dataS:
+            perfPsi2d, t0, xi, yi = dataS
+
+            if plot2D == "polarization":
+                density, Ux, Uy = self._compute_polarization(perfPsi2d)
+                perf2d = density
+                self._gxi, self._gyi = np.meshgrid(xi, yi, indexing='ij')
             else:
-                per_real = np.abs(per) # **2  # "scalar profile"
-                temp, = ax.plot(xi, per_real, ls=ls, c=color[ind], lw=lw)
-            frame.append(temp)
+                perf2d = perfPsi2d
+            perf2d = perf2d.T
 
-        # Compute text position
-        x_pos = xlim[0] + (xlim[1] - xlim[0]) / 2 if xlim else np.mean(xi) + 1
-        
-        # y_pos = np.max(temp_data) - np.max(temp_data) / 8
-        y_pos = np.max(np.abs(temp_data)**2) - np.max(np.abs(temp_data)**2)/8
-        tframe = ax.text(x_pos, y_pos, s=r'time=$%3.2f$' % t0, fontsize='small')
+            vmax = np.abs(perf2d).max()
+            vmin = np.abs(perf2d).min()
+            cmap, norm = pl.colorBar_and_normaliz(vmax, vmin, cmapStr=False, cmapint=cmapint)
 
-        # Set axis limits
-        if xlim:
-            ax.set_xlim(xlim)
-        else:
-            ax.set_xlim(min(xi), max(xi))
+            frame = self.ax[panel].imshow(perf2d, cmap=cmap, 
+                                 extent=(xi.min(), xi.max(), yi.min(), yi.max()),
+                                 norm=norm, origin='lower'
+                                 )
 
-        if ylim:
-            ax.set_ylim(ylim)
-        
-        # Labels
-        ax.set_xlabel(r'$x$')
-        ax.set_ylabel(r'Profile')
+            # -------- quiver --------
+            if plot2D == "polarization":
+                grid_size = len(xi)
+                self._step = max(2, grid_size // 200)  # Adjust step based on grid size, with a minimum of 2
+                self._frame_quiver = self.ax[panel].quiver(
+                    self._gxi[::self._step, ::self._step],
+                    self._gyi[::self._step, ::self._step],
+                    Ux[::self._step, ::self._step],
+                    Uy[::self._step, ::self._step],
+                    color="white",
+                    scale=0.8,
+                    pivot='middle',
+                    scale_units='xy',
+                    width=0.005
+                )
 
-        # Show plot if requested
-        if show:
-            plt.show()
+            self.ax[panel].set_axis_off()
+            self.ax[panel].set_xlim(xlim)
+            self.ax[panel].set_ylim(ylim)
+            panel += 1
 
-        return fig, ax, frame, tframe
+        # -------- 1D profile --------
+        perfmax = None
+        if dataL:
+            perf1d, xi1d, t0 = dataL
+            if perf1d.shape != xi1d.shape:
+                print(f"Warning: perf1d shape {perf1d.shape} does not match xi1d shape {xi1d.shape}. You introduced the Psi.")
+
+            perfmax = np.abs(perf1d).max()
+            if perfmax == 0: perfmax = 1.0  # Avoid division by zero
+            ydata = np.abs(perf1d) / perfmax
+
+            # Set up the color mapping for the 1D profile if needed
+            if not dataS:  # Only set color mapping if 2D data is not present
+                vmax = np.abs(ydata).max()
+                vmin = np.abs(ydata).min()
+                cmap, norm = pl.colorBar_and_normaliz(vmax, vmin, cmapStr=False, cmapint=cmapint)
+
+            ydata = np.atleast_2d(ydata)  # Ensure ydata is array-like
+            for axe, data in zip(['x', 'y', 'z'], ydata):
+                self._line_profiles[axe], = self.ax[panel].plot(xi1d, data, lw=0.5)
+
+                # Create LineCollection for the 1D profile
+                points = np.array([xi1d, data]).T.reshape(-1, 1, 2)
+                segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+                self._line_collections[axe] = LineCollection(segments, cmap=cmap, norm=norm)
+                self._line_collections[axe].set_array(data)
+                self.ax[panel].add_collection(self._line_collections[axe])
+
+            self.ax[panel].set_axis_off()
+           
+        if not dataS and not dataL: raise ValueError("At least one of dataS or dataL must be provided.")
+
+        # Add time annotation
+        panel = 0  # Put time annotation on the first panel
+        xmin, xmax = self.ax[panel].get_xlim()
+        ymin, ymax = self.ax[panel].get_ylim()
+
+        x_pos = xmin + 0.1 * (xmax - xmin)  # Position to the left of the plot 
+        y_pos = ymax - 0.1 * (ymax - ymin)  # Adjust y_pos to be above the top of the plot
+        tframe = self.ax[panel].text(x_pos, y_pos, f"time = {t0:.3f}", color='red', fontsize=8, verticalalignment='top')
+
+        return frame, tframe, perfmax
     
-    def updateimagshow02D(self, ind, frame, frame1, frame2, tframe,
-                        ax, ti, name, name2, array_data, array_data2,
-                        xi, cmap, perfmax):
-        """ 
-        """
-        t = ti[ind]
-        tframe.set_text(r'time=$%4.3f$'%t)
+    # Update function for animation
+    #########################################################################
+    def updateimagshow02D(self, ind, frame, tframe, ti, nameL, nameS,
+                          array_dataL, array_dataS, xi, perfmax, plot2D):
+        """Update the 2D performance and 1D profile for the animation."""
 
-        perf1d = array_data[name+'%d'%ind]
-        perf2d = array_data2[name2+'%d'%ind]
-        perf2d = perf2d.T
+        frame, tframe = frame, tframe
 
-        # updating axis
-        frame.set_array(perf2d)
-        
-        frame1.set_ydata(perf1d)
-        
-        # perfmax = max(perf1d) if np.any(perf1d) else 1  # Avoid division by zero
-        color = perf1d/perfmax
-        
-        ls = pl.colored_line(xi, perf1d/perfmax, color, ax[1], add=False, linewidth=2, cmap=cmap, zorder=10)
-        frame2.update({'segments': ls.get_segments(),
-                       #'cmap': ls.get_cmap(),
-                       'array': color #ls.get_array()
-                       })
-        
-        # updating y-lim
-        #axT[1].set_ylim(min(ui2)-min(ui2)/8, max(ui2)+max(ui2)/8)
-        
-        return frame, frame1, frame2, tframe
+        if tframe: tframe.set_text(f"time = {ti[ind]:.3f}")
 
-    def updateframe2D(self, ind, frame, tframe,
-                        plot2D, ti, name, array_data):
-        """ 
-        """
-        t = ti[ind]
-        tframe.set_text(r'time=$%4.3f$'%t)
+        # Update 2D surface
+        panel = 0
+        if frame:
+            if plot2D == "polarization":
+                psi2d = array_dataS[f"{nameS}{ind}"]
+                perf2d, Ux, Uy = self._compute_polarization(psi2d)
 
-        ui_data = array_data[name+'%d'%ind]
-
-        for ind, ui in enumerate([ui_data] if ui_data.ndim == 1 else ui_data):
-            if plot2D == "density":
-                frame[ind].set_ydata(ui)
+                self._frame_quiver.set_UVC(
+                    Ux[::self._step, ::self._step],
+                    Uy[::self._step, ::self._step]
+                )
             else:
-                frame[ind].set_ydata(np.abs(ui)) #**2)
+                if array_dataS: perf2d = array_dataS[f"{nameS}{ind}"]
+            frame.set_array(perf2d.T)
+            panel += 1
+
+        # Update 1D line
+        if array_dataL:
+            perf1d = array_dataL[f"{nameL}{ind}"]
+            ydata = np.abs(perf1d) / perfmax
+
+            ydata = np.atleast_2d(ydata)
+            for axe, data in zip(['x', 'y', 'z'], ydata):
+                self._line_profiles[axe].set_ydata(data)
+
+                # Update LineCollection
+                points = np.array([xi, data]).T.reshape(-1, 1, 2)
+                segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+                self._line_collections[axe].set_segments(segments)
+                self._line_collections[axe].set_array(data)
+
+            # Dynamic ylim (only ground)
+            ymin = ydata.min()
+            ymax = ydata.max()
+
+            if ymin != ymax:
+                margin = 0.05 * (ymax - ymin)
+                new_ymin = ymin  # - margin
+                new_ymax = ymax + margin
+                current_ymin, current_ymax = self.ax[panel].get_ylim()
+
+                self.ax[panel].set_ylim(
+                    min(new_ymin, current_ymin),
+                    max(new_ymax, current_ymax)
+                    )
 
         return frame, tframe
 
-    def fplot2D(self, n0, grid, array_data,
-                name, struc, plot2D="density",
-                xlim=(-1, 1), ylim=(-1, 1), xlimE=(-1, 1), ylimE=(-1, 1),
-                interval=200,
-                cmapint=['#050505', '#f0784d'],
-                array_data2=None, name2=False,
-                show=False,
-                text=None, dt=1):
-        """
-        Creates a 2D animated plot using time-dependent data.
+    # Animation builder
+    #########################################################################
+    def fplot2D(self, n0, grid, array_dataL, nameL, plot2D,
+                xlim, ylim, cmapint, interval, array_dataS, nameS, dt):
+        """Build the animation for the 2D performance and 1D profile."""
 
-        Parameters:
-        - n0: Initial frame index.
-        - grid: Grid data (assumed to be a list or NumPy array).
-        - array_data: Dictionary containing time series and profiles.
-        - name: Base name of profile data in `array_data`.
-        - struc: Tuple containing (xmin, xmax, linestyle, linewidth, color).
-        - show: Boolean flag to display the plot (default: False).
+        dataL = None
+        if nameL:
+            ti = array_dataL['t'] * dt
+            prof0 = array_dataL[f"{nameL}{n0}"]
+            dataL = [prof0, grid[0], ti[n0]]
 
-        Returns:
-        - anim: Matplotlib animation object.
-        """
-        # Check if grid is valid
-        if not isinstance(grid, (list, np.ndarray)) or len(grid) == 0:
-            raise ValueError("Invalid 'grid': Expected a non-empty list or NumPy array.")
-    
-        # Time data
-        ti = array_data['t'] * dt
+        dataS = None
+        if nameS:
+            ti2 = array_dataS['t'] * dt
+            prof20 = array_dataS[f"{nameS}{n0}"]
+            dataS = [prof20, ti2[n0], grid[0], grid[1]]
 
-        # Profile data
-        profile_key = f"{name}{n0}"
-        prof0 = array_data[profile_key]
-        data0 = [prof0, grid[0], ti[n0]]
-        
-        # Number of frames
-        nframes = len(ti) - n0
-        
-        # First frame
-        if name2:
-            # print un warning donde dice q 
-            # Profile plane data
-            ti2 = array_data2['t'] * dt
-            profile_key = f"{name2}{n0}"
-            prof20 = array_data2[profile_key]
-            data1 = [prof20, ti2[n0]]
-
-            fig, ax = self.figData
-            ax, frame, frame1, frame2, tframe, cmap, perfmax = self.imagshow02D(ax=ax, data=data1, datl=data0,
-                                                                          xlim=xlim, ylim=ylim,
-                                                                          cmapint=cmapint, xlimE=xlimE, ylimE=ylimE,
-                                                                          show=show, text=text)
-            # Animation
-            anim = animation.FuncAnimation(
-                fig, 
-                self.updateimagshow02D,
-                frames = range(n0, nframes),
-                fargs = (frame, frame1, frame2, tframe, 
-                       ax, ti2, name, name2, array_data, array_data2, grid[0], cmap, perfmax),
-                interval = interval, 
-                blit = False
-                )
-        else:
-            fig, ax, frame, tframe = self.frame02D(data0, struc, xlim=xlim, ylim=ylim, show=show, plot2D=plot2D)
-            
-            # Animation
-            anim = animation.FuncAnimation(
-                fig, 
-                self.updateframe2D,
-                frames = range(n0, nframes),
-                fargs = (frame, tframe, plot2D, ti, name, array_data),
-                interval = interval, 
-                blit = False
-                )
-        
+        time = ti2 if dataS else ti  # Use the time array from 2D data if available, otherwise use 1D time array
+        frame, tframe, perfmax = self.imagshow02D(dataS, dataL, xlim, ylim, cmapint, plot2D)
+        anim = animation.FuncAnimation(self.fig, self.updateimagshow02D, frames=range(n0, len(time)),
+                                       fargs=(frame, tframe, time,
+                                              nameL, nameS, array_dataL,
+                                              array_dataS, grid[0], perfmax, plot2D),
+                                              interval=interval, blit=False)
         return anim
 
-    ############
+    # Main video creation function
+    #########################################################################
+    def video(self, nameL, nameS, save_name, coord=('x', 'y', 'z'),
+              address=None, plot2D="polarization", n0=0,
+              xlim=(-1, 1), ylim=(-1, 1), cmapint=('#050505', '#f0784d'),
+              interval=50, vconf=(20, 2000000, ['-vcodec', 'libx264']),
+              save=True, dt=1.0):
+        """Main function to create the video from the data."""
 
-    #############
-    def video(self, nameP,
-              struc, nameV, name2=False, coord=['x', 'y', 'z'], address=None,
-              namegrid='end_grid.npz',
-              format='.npz',
-              plot2D="density",
-              n0=0, show=False,
-              xlim=(-1, 1), ylim=(-1, 1), xlimE=(-1, 1), ylimE=(-1, 1),
-              cmapint=['#050505', '#f0784d'], interval=200,
-              vconf=[10, 1000000, ['-vcodec', 'libx264']],
-              save=True, text=None, dt=1.):
-        """ 
-        Making a video from the data
-        """
-        plot2D_Opt = ("density", "field")
+        grid, array_dataL, array_dataS = self.extDataSave( nameL=nameL, nameS=nameS, coord=coord, address=address)
 
-        # checking
-        if plot2D not in plot2D_Opt:
-            raise ValueError(f"Invalid choose fo plot2D, {plot2D} not in the list: {{density, field}}")
-        
-        # Load data
-        result = self.extDataSave(coord=coord, namegrid=namegrid, nameP=nameP,
-                          name2=name2, address=address, format=format)
-        if name2:
-            grid, array_data, array_data2 = result
-        else:
-            grid, array_data = result
-            array_data2 = None
+        anim = self.fplot2D(n0, grid, array_dataL, nameL, plot2D, xlim, ylim, cmapint, interval, array_dataS, nameS, dt)
 
-        # Making the animation
-        anim = self.fplot2D(n0, grid, array_data, nameP, struc, plot2D=plot2D,
-                            cmapint=cmapint, array_data2=array_data2, name2=name2,
-                            xlim=xlim, ylim=ylim, xlimE=xlimE, ylimE=ylimE, show=show, 
-                            interval=interval, text=text, dt=dt)
-
-        fps, bitrate, extra_args = vconf
         if save:
-            anim.save(nameV+'.mp4', bitrate=bitrate, fps=fps, extra_args=extra_args)  # direc+nameV+
-        else:
-            animated_plot = HTML(anim.to_jshtml())
-            return animated_plot
+            fps, bitrate, extra_args = vconf
+            anim.save(f"{save_name}.mp4", fps=fps, bitrate=bitrate, extra_args=extra_args)
+            return None
         
-        return None
+        html_video = anim.to_jshtml()
+        return HTML(f"""
+                    <div style="width:600px; margin:auto;">
+                    {html_video}
+                    </div>
+                    """)

@@ -191,8 +191,6 @@ def PlaneProf(prof, xd, yd, cxd, cyd, save=False, v_vals=None, info=False):
     vmin, vmax = v_vals if v_vals else [np.abs(prof).min(), np.abs(prof).max()]
     if info:
         print('vmin, vmax', vmin, vmax)
-    #maximo = np.max(prof)
-    #minimo = np.min(prof)
     
     cmap, norm = colorBar_and_normaliz(vmax, vmin)  # Ensure function name matches
     

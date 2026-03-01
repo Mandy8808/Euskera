@@ -99,16 +99,16 @@ class ell_Model():
             position, velocity, phase, alpha, dr, ell = conf
             
             # Generate allowed m values
-            m_values = list(range(-ell, ell + 1))
+            m_values = list(range(-ell[0], ell[0] + 1))
 
             # Validate number of components
             if field_components != len(m_values):
-                raise ValueError(f"For l={ell}, expected {2*ell+1} components "
+                raise ValueError(f"For l={ell[0]}, expected {2*ell[0]+1} components "
                                  f"but got field_components={field_components}")
             # Loop over m components
             for i, m in enumerate(m_values):
                 param = (float(beta_values[i]), float(phase[0]), position, float(alpha[0]))
-                psi[i] = build_ell(funct, psi[i], comp_profiles[i], coord, velocity, param, ell, m, Plim=Plim, delta_x=dr[0])
+                psi[i] = build_ell(funct, psi[i], comp_profiles[i], coord, velocity, param, ell[0], m, Plim=Plim, delta_x=dr[0])
         return psi
     
     def apply(self, field_components, parameters_simulation, grid_data=None, psi=None):
@@ -156,7 +156,7 @@ class ell_Model():
 # ========================
 def build_ell(funct, psi, radial_profile,
                   grid, velocity, param, l, m,
-                  Plim=5.6, delta_x=1e-51, t0=0):
+                  Plim=5.6, delta_x=1e-5, t0=0):
     """
     Wavefunction builder
     

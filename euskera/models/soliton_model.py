@@ -96,7 +96,9 @@ class Soli_Model():
 
         for comp_profiles, beta_values, conf in glob_data:
             position, velocity, phase, alpha, dr = conf
-            for i in range(field_components):  # running by the components
+
+            # Loop over vector components
+            for i in range(field_components):
                 param = (float(beta_values[i]), float(phase[0]), position, float(alpha[0]))
                 psi[i] = build_soliton(funct, psi[i], comp_profiles[i], coord, velocity, param, Plim=Plim, delta_x=float(dr[0]))
         return psi
@@ -147,7 +149,7 @@ class Soli_Model():
              
 def build_soliton(funct, psi, radial_profile, 
                   grid, velocity, param, 
-                  Plim=5.6, delta_x=1e-51, t0=0):
+                  Plim=5.6, delta_x=1e-5, t0=0):
     """
     Compute the initial soliton profile:
     

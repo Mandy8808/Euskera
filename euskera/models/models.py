@@ -10,6 +10,7 @@ sys.path.append(parent_dir)
 import models.soliton_model as sm
 import models.gaussiana_model as gm
 import models.ell_model as ell_m
+import models.proca_model as proc_m
 
 ###################################################################################################
 
@@ -20,6 +21,7 @@ MODEL_REGISTRY = {
     "soliton": sm.Soli_Model,
     "gaussian_function": gm.Gaussiana_Model,
     "ell_boson": ell_m.ell_Model,
+    "proca": proc_m.proca_Model
 }
 
 ########### Models Class (to choosed the model) #############################
@@ -152,14 +154,20 @@ def dict_type(name):
 
     dict_ell_boson_type = {key: (tuple, list) for key in param_soliton}
     dict_ell_boson_type.update({
-        "ell": (int,)
+        "ell": (tuple, list)
+    })
+
+    dict_proca_type = {key: (tuple, list) for key in param_soliton}
+    dict_proca_type.update({
+        "polarization": (tuple, list)
     })
     
     # Mapping model names to their respective type dictionaries
     default_parameters_type = {
         "soliton": dict_soliton_type,
         "gaussian_function": dict_gauss_func_type,
-        "ell_boson": dict_ell_boson_type
+        "ell_boson": dict_ell_boson_type,
+        "proca": dict_proca_type
     }
     dict_prop = default_parameters_type.get(name)
     

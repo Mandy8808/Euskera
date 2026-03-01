@@ -213,7 +213,7 @@ def progressbar(current_value, total_value, bar_length=20, progress_char='#'):
 ########### Save parameters
 #############################################################################
 
-def save_parameters(simulation_parameters, salva_data, comp_conserv, name="parameters"):
+def save_parameters(model_parameters, simulation_parameters, salva_data, comp_conserv, save_name="parameters"):
     """
     Saves simulation parameters to a text file.
 
@@ -226,11 +226,19 @@ def save_parameters(simulation_parameters, salva_data, comp_conserv, name="param
     Returns:
         None
     """
-    # Merge dictionaries
-    dictGlobal = {**simulation_parameters, **salva_data, **comp_conserv}
-
     # Define keys to exclude
-    not_save = {"address", "plott0", "Boverlap", "info"}
+    not_save = {"profiles", "address", "plott0", "Boverlap", "info"}
+
+    # Model data dictionary
+    data_model = {}
+    for name, data_list in model_parameters.items():
+        data_model[name] = [
+            {k: v for k, v in model.items() if k not in not_save}
+            for model in data_list
+        ]
+
+    # Merge dictionaries
+    dictGlobal = {**data_model, **simulation_parameters, **salva_data, **comp_conserv}
 
     # Get address and ensure it's a valid path
     address = dictGlobal.get("address", "./")  # Default to current directory
@@ -240,7 +248,7 @@ def save_parameters(simulation_parameters, salva_data, comp_conserv, name="param
     os.makedirs(address, exist_ok=True)
 
     # Construct full file path
-    file_path = os.path.join(address, f"{name}.txt")
+    file_path = os.path.join(address, f"{save_name}.txt")
 
     # Write parameters to file
     with open(file_path, 'w', encoding="utf-8") as f:
