@@ -1,0 +1,392 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{authblk}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{lmodern}  % Fuente legible
+
+\usepackage[english]{babel}
+
+\usepackage{hyperref}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{physics}
+\usepackage{latexsym}
+\usepackage{float}
+\usepackage{booktabs}
+
+\usepackage{verbatim}
+\usepackage{mathrsfs}
+\usepackage{amsfonts}
+
+\usepackage{graphicx,subfigure}
+\usepackage{epsfig}
+
+\usepackage{units}
+\usepackage{overpic}
+\usepackage[utf8]{inputenc}
+\usepackage{rotating}
+\usepackage{enumerate}
+
+\usepackage{soul}
+
+\usepackage{xfrac}
+\usepackage{xcolor}
+\usepackage{multirow}
+
+\newcommand{\ket}[1]{ \left|#1\right>}
+\newcommand{\braket}[2]{\left< #1 | #2 \right>}
+\title{Numerical Evolution of the Schrödinger-Poisson system}
+\author[2]{Alberto Diez-Tejedor}
+\author[2]{José Luis Medina García}
+\author[3,2]{Armando A. Roque}
+\author[1,4]{Olivier Sarbach}
+
+\affil[1]{\small \textit{Instituto de Física y Matemáticas, Universidad Michoacana de San Nicolás de Hidalgo,
+Edificio C-3, Ciudad Universitaria, 58040 Morelia, Michoacán, México}}
+
+\affil[2]{\small \textit{Departamento de Física, División de Ciencias e Ingenierías,
+Campus León, Universidad de Guanajuato, 37150 León, México}}
+
+\affil[3]{\small \textit{Unidad Académica de Física, Universidad Autónoma de Zacatecas,
+98060 Zacatecas, México}}
+
+\affil[4]{\small \textit{Departamento de Matemáticas Aplicadas y Sistemas,
+Universidad Autónoma Metropolitana-Cuajimalpa,
+05348 Cuajimalpa de Morelos, Ciudad de México, México}}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+
+\section*{Schrödinger-Poisson System}
+The \textbf{Schrödinger-Poisson} (SP) system can be used to describe non-relativistic, non-selfinteracting, self-gravitating quantum systems in which all particles occupy the same quantum state. In other words, it corresponds to the non-relativistic limit of the Einstein-Klein-Gordon (EKG) system. The system is given by the equations:
+\begin{align}
+    i\hbar \frac{\partial \Psi(t,\vec{x})}{\partial t}&=-\frac{\hbar^2}{2m}\nabla^{2}\Psi(t,\vec{x})+mU(t,\vec{x})\Psi(t,\vec{x}) \\
+    \nabla^2 U(t,\vec{x})&=4\pi G m |\Psi(t,\vec{x})|^2
+\end{align}
+Here, the Schrödinger field is denoted by $\Psi(t,\vec{x})$, and the gravitational potential by $U(t,\vec{x})$. The goal is to determine, given arbitrary initial data $\Psi(t_0,\vec{x})$, how the system evolves in time up to a later instant $\Psi(t,\vec{x})$ with $t>t_0$. \\
+The idea is to understand how this problem can be (formally) solved analytically and then see how such a solution can be adapted to a numerical (computer-based) context. \\
+The problem will be tackled with increasing levels of complexity:
+\begin{enumerate}
+    \item With a fixed external gravitational potential $U(t,\vec{x})=U(\vec{x})$.
+    \item With an external time-dependent gravitational potential $U(t,\vec{x})$.
+    \item The full SP system.
+    \item Adaptation of the formal solution for implementation on a computer.
+\end{enumerate}
+
+\section*{Solution of the SP system with a fixed external gravitational potential}
+In this case, one only needs to solve the Schrödinger equation:
+\begin{equation}
+    i\hbar \frac{\partial \Psi(t,\vec{x})}{\partial t}=-\frac{\hbar^2}{2m}\nabla^{2}\Psi(t,\vec{x})+V(\vec{x})\Psi(t,\vec{x})
+\end{equation}
+where $V(\vec{x})=mU(\vec{x})$ is the gravitational potential energy. It is important to emphasize that we are not doing quantum mechanics in the exact sense (we are working with a classical field, not a quantum wavefunction); however, to solve this equation we can use the same language: linear vector spaces. \\
+Instead of thinking of the field $\Psi(t,\vec{x})$, we consider the state vector $\ket{\Psi(t)}$. In this language, the field $\Psi(t,\vec{x})=\braket{\vec{x}}{\Psi(t)}$ represents the components of the state vector in the basis $\{\ket{\vec{x}}\}$. The Schrödinger equation in terms of the state vector reads:
+\begin{equation}
+\label{eqn:Schrodinger_estado}
+    i\hbar \frac{\partial}{\partial t} \ket{\Psi(t)}=\hat{H}\ket{\Psi(t)}
+\end{equation}
+where the Hamiltonian operator is given by $\hat{H}=\hat{p}^2/2m+V(\hat{x})$. In the position basis, this equation reduces to the standard Schrödinger equation. Using the identities:
+\begin{align}
+    \braket{\vec{x}}{\hat{x}|\vec{x}'}&=\vec{x}\delta^{(3)}(\vec{x}-\vec{x}') \\
+    \braket{\vec{x}}{\hat{p}|\vec{x}'}&=-i\hbar\delta^{(3)}(\vec{x}-\vec{x}')\vec{\nabla}_{x'} \\
+    \int d^{3}x \, \ket{\vec{x}}\left<\vec{x}\right|&=\mathbb{I}
+\end{align}
+In this formalism, the solution to the Schrödinger equation (equation \ref{eqn:Schrodinger_estado}) can be written in terms of the time evolution operator (a unitary linear operator that connects the initial data of the problem to the solution at time $t$) as:
+\begin{equation}
+    \ket{\Psi(t)}=\hat{U}(t,t_0)\ket{\Psi(t_0)}
+\end{equation}
+Substituting this solution into the Schrödinger equation gives:
+\begin{equation}
+\label{eqn:Schrodinger_U}
+    i\hbar \frac{\partial}{\partial t} \hat{U}(t,t_0)=\hat{H}\hat{U}(t,t_0)
+\end{equation}
+Thus, the operator $\hat{U}(t,t_0)$ also satisfies the Schrödinger equation. This equation is written in operator form; to solve it, we can imagine that both $\hat{U}(t,t_0)$ and $\hat{H}$ are standard functions. In that case, one obtains:
+\begin{equation}
+    U(t)=U(t_0)e^{-\frac{i}{\hbar}H(t-t_0)}
+\end{equation}
+This suggests that the operator solution is:
+\begin{equation}
+    \hat{U}(t,t_0)=e^{-\frac{i}{\hbar}\hat{H}(t-t_0)}
+\end{equation}
+By substituting this into equation \ref{eqn:Schrodinger_U} and expanding in a Taylor series, one can verify that this indeed satisfies the Schrödinger equation for the propagator. However, a crucial point in the proof is that $\hat{H}$ must commute with itself. \\
+Expressing the solution in the position basis, we obtain:
+\begin{equation}
+\label{eqn:Sch_solformal}
+    \Psi(t,\vec{x})=\braket{\vec{x}}{\hat{U}(t,t_0)\bigg|\Psi(t_0)}=\int d^3 x' K(t,\vec{x};t_0,\vec{x}')\Psi(t_0,\vec{x}')
+\end{equation}
+Equation \ref{eqn:Sch_solformal} is the formal solution to the Schrödinger equation. It propagates the field from the initial time $t_0$ to the final time $t$. The evolution operator in the position basis is called the propagator:
+\begin{equation}
+    K(t,\vec{x};t_0,\vec{x}')=\braket{\vec{x}}{\hat{U}(t,t_0)\bigg|\vec{x}'}
+\end{equation}
+This represents the probability amplitude that a particle initially localized at $\vec{x}'$ at time $t_0$ is found at position $\vec{x}$ at time $t$.
+
+\section*{Solution of the SP system with an external and time-dependent gravitational potential \label{sec2}}
+
+We now consider a gravitational potential energy that depends on time, \( V(t,\vec{x}) \), so that the Hamiltonian operator is also time-dependent: \( \hat{H}(t) = \hat{p}^2/2m + V(t,\vec{x}) \). By following the same steps as in the previous case, but accounting for the time dependence of the Hamiltonian operator, one might initially be led to write the time evolution operator \( \hat{U}(t,t_0) \) as:
+\begin{equation}
+    \hat{U}(t,t_0) = e^{-\frac{i}{\hbar} \int_{t_0}^{t} \hat{H}(\overline{t})\, d\overline{t}}.
+\end{equation}
+However, when verifying whether this form satisfies the Schrödinger equation, it becomes clear that an important detail must be considered. A Taylor series expansion shows that, in general, \( [\hat{H}(t_1), \hat{H}(t_2)] \neq 0 \). This non-commutativity requires the use of the time-ordering operator \( \hat{T} \), which arranges all operators in the expression chronologically. Thus, the correct expression for the time evolution operator, according to Dyson's formula, is:
+\begin{equation}
+\label{eqn:Dyson}
+    \hat{U}(t,t_0) = \hat{T} \left( e^{-\frac{i}{\hbar} \int_{t_0}^{t} \hat{H}(\overline{t})\, d\overline{t}} \right).
+\end{equation}
+When expressing the solution in the eigenbasis of the position operator \( \hat{X} \), we obtain:
+\begin{equation}
+\label{eqn:Sch_solformal}
+    \Psi(t,\vec{x}) = \braket{\vec{x}}{\hat{U}(t,t_0) \big| \Psi(t_0)} = \int d^3 x' \, K(t,\vec{x}; t_0,\vec{x}') \, \Psi(t_0,\vec{x}'),
+\end{equation}
+where the propagator is defined as:
+\begin{equation}
+    K(t,\vec{x}; t_0,\vec{x}') = \braket{\vec{x}}{\hat{U}(t,t_0) \big| \vec{x}'}.
+\end{equation}
+The only difference now is that one must use the new expression for the time evolution operator given in equation~\eqref{eqn:Dyson}.
+
+\section*{Full SP system}
+
+To solve the full SP system, self-gravity must be included. This means that the gravitational potential must satisfy the Poisson equation:
+\begin{equation}
+    \nabla^2 U(t,\vec{x}) = 4\pi G m |\Psi(t,\vec{x})|^2,
+\end{equation}
+where the gravitational potential is sourced by the configuration itself, and the term \( m|\Psi(t,\vec{x})|^2 \) plays the role of mass density. One thus needs to solve the inhomogeneous Laplace equation.\\
+To solve inhomogeneous partial differential equations, we can use the Green's function method. In this way:
+\begin{equation}
+    U(t,\vec{x}) = \int d^3 x' \, G(\vec{x},\vec{x}') \, 4\pi G m |\Psi(t,\vec{x}')|^2, \quad \text{with } \nabla^2_{\vec{x}} G(\vec{x},\vec{x}') = \delta^{(3)}(\vec{x} - \vec{x}'),
+\end{equation}
+With this, the problem is formally solved for both the Schrödinger field \( \Psi(t,\vec{x}) \) and the gravitational potential \( U(t,\vec{x}) \):
+\begin{align}
+    \Psi(t,\vec{x}) &= \int d^3 x' \, K(t,\vec{x}; t_0,\vec{x}') \Psi(t_0,\vec{x}'), \quad \text{with } K(t,\vec{x}; t_0,\vec{x}') = \braket{\vec{x}}{\hat{U}(t,t_0) \big| \vec{x}'} \label{eqn:PsiSP} \\
+    U(t,\vec{x}) &= \int d^3 x' \, G(\vec{x},\vec{x}') \, 4\pi G m |\Psi(t,\vec{x}')|^2, \quad \text{with } \nabla^2_{\vec{x}} G(\vec{x},\vec{x}') = \delta^{(3)}(\vec{x} - \vec{x}') \label{eqn:USP}
+\end{align}
+This is the furthest one can go in solving the system analytically and exactly.
+
+\section*{Adaptation of the Formal Solution for Implementation on a Computer}
+
+Now, we will take the formal expressions of the SP system and rewrite them in a more suitable form for computer implementation. \\
+Let us focus on very short time steps ($\epsilon \rightarrow 0$) for the Schrödinger field (equation \ref{eqn:PsiSP}):
+\begin{equation}
+    \Psi(t+\epsilon,\vec{x})=\int d^{3}x' \, K(t+\epsilon,\vec{x};t,\vec{x}')\Psi(t,\vec{x}')
+\end{equation}
+This expression evolves the field $\Psi$ from an instant $t$ to an instant $t+\epsilon$. Under this assumption, we want to determine the form that the propagator $K(t+\epsilon,\vec{x};t,\vec{x}')$ takes. Starting from the time-evolution operator found earlier with the time-ordering operator and expanding it in a Taylor series:
+\begin{align}
+    \hat{U}(t+\epsilon,t)&=\hat{T}\left(e^{-\frac{i}{\hbar}\int_{t}^{t+\epsilon}\hat{H}(\overline{t})\,d\overline{t}} \right) \\
+    \hat{U}(t+\epsilon,t)&=\mathbb{I}+\left(\frac{-i}{\hbar} \right)\int_{t}^{t+\epsilon}\hat{H}(t_1)\, dt_1+\left(\frac{-i}{\hbar} \right)^2\int_{t}^{t+\epsilon}dt_{1}\int_{t}^{t_{1}}dt_{2} \, \hat{H}(t_{1})\hat{H}(t_{2})+...
+\end{align}
+Recall that the time-ordering operator is required because, in general, $[\hat{H}(t_1),\hat{H}(t_2)]\neq 0$. However, this issue only appears at order $\mathcal{O}(\epsilon^2)$. If we use the expression without the time-ordering operator and commute the Hamiltonians, the Schrödinger equation is still satisfied. Since $[\hat{H}(t_1),\hat{H}(t_2)]\sim \mathcal{O}(\epsilon)$, the discrepancy between the incorrect and correct expressions is of order $\epsilon^3$. As we are taking $\epsilon \rightarrow 0$, if we allow for an error of order $\epsilon^3$, we can use the incorrect expression:
+\begin{equation}
+    \hat{U}(t+\epsilon,t)=e^{-\frac{i}{\hbar}\int_{t}^{t+\epsilon}\hat{H}(\overline{t}) \, d\overline{t}}+\mathcal{O}(\epsilon^3)
+\end{equation}
+Performing the integral of the exponential and noting that in the Schrödinger picture the operator $\hat{p}$ does not depend on time, we can write:
+\begin{align}
+    \int_{t}^{t+\epsilon}\hat{H}(\overline{t})d\overline{t}&=\int_{t}^{t+\epsilon}\left[\frac{\hat{p}^2}{2m}+V(\overline{t},\hat{x}) \right] d\overline{t} \\
+    \int_{t}^{t+\epsilon}\hat{H}(\overline{t})d\overline{t}&=\frac{\hat{p}^2}{2m}\epsilon +\int_{t}^{t+\epsilon}V(\overline{t},\hat{x})d\overline{t}
+\end{align}
+We have different forms for performing this integral of the gravitational potential energy, if we calculate the area under the curve in the limit $t+\epsilon \rightarrow t$, we can do a Taylor expansion of the integrand around $t$, the result is:
+\begin{equation}
+\label{eqn:IntVPyUltraLight}
+    \int_{t}^{t+\epsilon}V(\overline{t},\hat{x})d\overline{t}=\frac{1}{2}\left[V(t,\hat{x}+V(t+\epsilon,\hat{x}) \right]+\mathcal{O}(\epsilon^3)
+\end{equation}
+This is the identity that PyUltraLight\cite{edwards2018pyultralight} uses. Nevertheless, i-Spin\cite{jain2023spin} uses a different identity, it expands the integrand around $t+\frac{\epsilon}{2}$ and the result is:
+\begin{equation}
+    \label{eqn:IntViSpin}\int_{t}^{t+\epsilon}V(\overline{t},\hat{x})d\overline{t}=V\left(t+\frac{\epsilon}{2},\hat{x}\right)+\mathcal{O}(\epsilon^3)
+\end{equation}
+Using the PyUltraLight's way, we use the identity of the equation \ref{eqn:IntVPyUltraLight} to perform the integral, the time-evolution operator is:
+\begin{equation}
+    \hat{U}(t+\epsilon,t)=e^{-\frac{i}{\hbar}\frac{\epsilon}{2}\left(\frac{\hat{p}^2}{m}+V(t,\hat{x})+V(t+\epsilon,\hat{x}) \right)}+\mathcal{O}(\epsilon^3)
+\end{equation}
+The kinetic term is well-suited to the momentum basis, while the potential terms are better suited to the position basis. We aim to split this exponential into three components, each containing one of the terms. To do this, we use the Baker-Campbell-Hausdorff identity:
+\begin{equation}
+\label{eqn:BCH}
+    e^{X}e^{Y}=e^{Z}, \quad \text{with } Z=X+Y+\frac{1}{2}[X,Y]+\frac{1}{12}[X,[X,Y]]+\frac{1}{12}[Y,[Y,X]]+...
+\end{equation}
+Applying this identity to the time-evolution operator, we obtain:
+\begin{equation}
+    \hat{U}(t+\epsilon,t)=\text{exp}\left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t+\epsilon,\hat{x}) \right]\text{exp}\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m}\right]\text{exp}\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\hat{x})\right]+\mathcal{O}(\epsilon^3)
+\end{equation}
+Each factor is commonly referred to as:
+\begin{equation}
+    \left\{ \begin{array}{rcl}
+\text{exp}\left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t+\epsilon,\hat{x}) \right] &\rightarrow& \text{Kick} \\
+\text{exp}\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m}\right] &\rightarrow& \text{Drift} \\
+\text{exp}\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\hat{x})\right] &\rightarrow& \text{Kick}
+\end{array}\right.
+\end{equation}
+Recalling that the propagator is the time-evolution operator expressed in the position basis and using the identity $\braket{\vec{x}}{\vec{p}}=e^{i\vec{p}\cdot \vec{x}/\hbar}/(2\pi \hbar)^{3/2}$, we have:
+\begin{multline}
+    K(t+\epsilon,\vec{x};t,\vec{x}')=\frac{1}{(2\pi \hbar)^3}\int d^3 p \bigg( e^{\left[-\frac{i}{\hbar} \frac{\epsilon}{2} V(t+\epsilon,\vec{x}) \right]} e^{\frac{i\vec{p}\cdot \vec{x}}{\hbar}}e^{\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m}  \right]} \\ e^{-\frac{i\vec{p}\cdot \vec{x}'}{\hbar}}e^{\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\vec{x}')\right]} \bigg)
+\end{multline}
+Thus, the Schrödinger field at time $t+\epsilon$ is given by:
+\begin{multline}
+\label{eqn:psiTE}
+\Psi(t+\epsilon,\vec{x})=\int d^{3}x' \bigg( \frac{1}{(2\pi \hbar)^3}\int d^3 p \, e^{\left[-\frac{i}{\hbar} \frac{\epsilon}{2} V(t+\epsilon,\vec{x}) \right]} e^{\frac{i\vec{p}\cdot \vec{x}}{\hbar}}e^{\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m}  \right]} \\ e^{-\frac{i\vec{p}\cdot \vec{x}'}{\hbar}}e^{\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\vec{x}')\right]} \bigg) \Psi(t,\vec{x}')
+\end{multline}
+We can rearrange the integrals more conveniently to identify them as Fourier transforms:
+\begin{align}
+    \Psi(t+\epsilon,\vec{x}) &= e^{\left[-\frac{i}{\hbar} \frac{\epsilon}{2} V(t+\epsilon,\vec{x}) \right]} 
+    \bigg(\int \frac{d^{3}p}{(2 \pi \hbar)^{3/2}}e^{\frac{i\vec{p}\cdot \vec{x}}{\hbar}}e^{\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m}  \right]} \nonumber \\
+    &\quad \int \frac{d^{3}x'}{(2\pi \hbar)^{3/2}}e^{-\frac{i\vec{p}\cdot \vec{x}'}{\hbar}}e^{\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\vec{x}')\right]} \Psi(t,\vec{x}') \bigg) \\
+    \Psi(t+\epsilon,\vec{x}) &= \exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t+\epsilon,\vec{x}) \right] 
+    \mathcal{F}^{-1}_{\vec{p},\vec{x}}\bigg(\exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m} \right] \nonumber \\
+    &\quad \mathcal{F}_{\vec{p},\vec{x}'} \left( \exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\vec{x}') \right] \Psi(t,\vec{x}') \right) \bigg)
+\end{align}
+
+Using forward and inverse Fourier transforms, the above expression propagates $\Psi(t,\vec{x})$ to $\Psi(t+\epsilon,\vec{x})$ with an error of order $\epsilon^3$.\\
+Now, for the self-gravitating case, we must compute the gravitational potential $U(t,\vec{x})$ (equation \ref{eqn:USP}) generated by the configuration itself. Focusing on the gravitational potential:
+\begin{equation}
+    U(t,\vec{x})=\int d^{3}x' \, G(\vec{x},\vec{x}')4\pi G m |\Psi(t,\vec{x}')|^2
+\end{equation}
+At each time step, we must compute $U(t,\vec{x})$ from $\Psi(t,\vec{x})$. To obtain an explicit expression for the Green’s function $G(\vec{x},\vec{x}')$, it is convenient to work in Fourier space $\vec{x} \rightarrow \vec{k}$:
+\begin{equation}
+    G(\vec{x},\vec{x}')=\int \frac{d^{3}k}{(2\pi)^{3/2}} \overline{G}(\vec{k},\vec{x}')e^{i\vec{k}\cdot\vec{x}}
+\end{equation}
+Applying the Laplacian to the Green’s function gives:
+\begin{align}
+    \nabla^2_{x} G(\vec{x},\vec{x}')&= \delta^{(3)}(\vec{x}-\vec{x}') \\
+    \nabla^2_{x} \int \frac{d^{3}k}{(2\pi)^{3/2}} \overline{G}(\vec{k},\vec{x}')e^{i\vec{k}\cdot\vec{x}}&=\int \frac{d^{3}k}{(2\pi)^3}e^{i\vec{k}\cdot (\vec{x}-\vec{x}')} \\
+    \nabla^2_{x} \int \frac{d^{3}k}{(2\pi)^{3/2}} \overline{G}(\vec{k},\vec{x}')(-|\vec{k}|^2)e^{i\vec{k}\cdot\vec{x}} &= \int \frac{d^{3}k}{(2\pi)^3}e^{i\vec{k}\cdot (\vec{x}-\vec{x}')}
+\end{align}
+Comparing both expressions, we obtain:
+\begin{equation}
+    G(\vec{x},\vec{x}')=\int \frac{d^{3}k}{(2\pi)^{3/2}}\left(\frac{1}{(2\pi)^{3/2}}\frac{-1}{|\vec{k}|^2}e^{-i\vec{k}\cdot \vec{x}'} \right)e^{i\vec{k}\cdot \vec{x}}
+\end{equation}
+Substituting this into the formal solution and identifying Fourier transforms:
+\begin{align}
+    U(t,\vec{x})&=\left(\int \frac{d^{3}k}{(2\pi)^{3/2}}e^{i\vec{k}\cdot \vec{x}}\left[-\frac{1}{|\vec{k}|^2} \right]\int \frac{d^{3}x'}{(2\pi)^{3/2}}e^{-i\vec{k}\cdot \vec{x}'}4\pi G m \Psi(t,\vec{x}')|^2 \right) \label{eqn:UTE}\\
+    U(t,\vec{x})&=\mathcal{F}^{-1}_{\vec{k},\vec{x}}\left( -\frac{1}{|\vec{k}|^2} \mathcal{F}_{\vec{k},\vec{x}'}\left(4 \pi G m |\Psi(t,\vec{x}')|^2 \right) \right)
+\end{align}
+Using forward and inverse Fourier transforms, this expression allows us to compute the gravitational potential $U(t,\vec{x})$ associated with a configuration $\Psi(t,\vec{x})$.
+
+\section*{Dimensionless Quantities and Notation}
+Since we want to simulate this system on a computer, it is convenient to introduce dimensionless quantities. The Schrödinger–Poisson (SP) system in three dimensions, where the gravitational potential \( U(t,\vec{x}) \) is generated via Poisson's equation, is given by:
+\begin{align}
+    i\hbar \frac{\partial \Psi(t,\vec{x})}{\partial t}&=-\frac{\hbar^2}{2m_0}\nabla^{2}\Psi(t,\vec{x})+m_0 U(t,\vec{x}) \Psi(t,\vec{x}) \\
+    \nabla^{2} U(t,\vec{x})&=4\pi G m_0 |\Psi(t,\vec{x})|^2
+\end{align}
+In our dimensionless convention, we retain the factor \( \frac{1}{2} \) in the kinetic term of the Schrödinger equation and the \( 4\pi \) in Poisson’s equation. We define:
+\begin{align}
+    t&=4\pi \frac{G^2 m_0^{5}}{\hbar^3}t_{\text{phys}} \\
+    \vec{x}&=\sqrt{4\pi}\frac{G m_{0}^{3}}{\hbar^2}\vec{x}_{\text{phys}} \\
+    \Psi&=\frac{1}{4\pi}\left(\frac{\hbar^2}{Gm_0^{3}} \right)^{3/2} \Psi_{\text{phys}} \\
+    U&=\frac{1}{4\pi}\frac{\hbar^2}{G^{2}m_0^{4}}U_{\text{phys}}
+\end{align}
+We denote dimensionless quantities without subscript and physical quantities with the subscript "phys". The SP system in this dimensionless convention becomes:
+\begin{align}
+    -i\frac{\partial \Psi}{\partial t}&=-\frac{1}{2}\nabla^2 \Psi+U\Psi \\
+    \nabla^2 U&=4\pi |\Psi|^2
+\end{align}
+\subsection*{Functioning of the PyUltraLight code}
+In physical variables, the expression for \( \Psi_{\text{phys}}(t+\epsilon,\vec{x}) \) is known (equation \ref{eqn:psiTE}). To express it in dimensionless variables, we note:
+\begin{align}
+   \epsilon&=4\pi \frac{G^2 m_0^5}{\hbar^3}\epsilon_{\text{phys}} \\
+   \vec{p}&=\frac{1}{\sqrt{4\pi}}\frac{\hbar}{Gm_0^3}\vec{p}_{\text{phys}}
+\end{align}
+Thus, in dimensionless variables:
+\begin{align}
+    \Psi(t+\epsilon,\vec{x}) &= e^{\left[-\frac{i}{\hbar} \frac{\epsilon}{2} V(t+\epsilon,\vec{x}) \right]} 
+    \bigg(\int \frac{d^{3}p}{(2 \pi \hbar)^{3/2}}e^{\frac{i\vec{p}\cdot \vec{x}}{\hbar}}e^{\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m}  \right]} \nonumber \\
+    &\quad \int \frac{d^{3}x'}{(2\pi \hbar)^{3/2}}e^{-\frac{i\vec{p}\cdot \vec{x}'}{\hbar}}e^{\left[ -\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\vec{x}')\right]} \Psi(t,\vec{x}') \bigg) \\
+    \Psi(t+\epsilon,\vec{x}) &= \exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t+\epsilon,\vec{x}) \right] 
+    \mathcal{F}^{-1}_{\vec{p},\vec{x}}\bigg(\exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m} \right] \nonumber \\
+    &\quad \mathcal{F}_{\vec{p},\vec{x}'} \left( \exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\vec{x}') \right] \Psi(t,\vec{x}') \right) \bigg)
+\label{eqn:Psi PyUltralight}
+\end{align}
+Therefore, to compute the Schrödinger field at time \( t+\epsilon \), we need to know the gravitational potential at times \( t \) and \( t+\epsilon \).\\
+To compute the gravitational potential, we must solve Poisson’s equation. In physical variables, the expression for \( U_{\text{phys}}(t,\vec{x}) \) is known (equation \ref{eqn:UTE}). In dimensionless variables:
+\begin{equation}
+    \vec{k}=\frac{1}{\sqrt{4\pi}}\frac{\hbar^{2}}{Gm_0^{3}}\vec{k}_\text{phys}
+\end{equation}
+Then:
+\begin{align}
+    U(t,\vec{x})&=\left(\int \frac{d^3 k}{(2\pi)^{3/2}}e^{i\vec{k}\cdot \vec{x}} \left[\frac{-1}{|\vec{k}|^2} \right]\int \frac{d^{3}x'}{(2\pi)^{3/2}}e^{-\vec{k}\cdot \vec{x}'}4\pi |\Psi(t,\vec{x}')|^2 \right) \\
+    U(t,\vec{x})&=\mathcal{F}_{\vec{k},\vec{x}}^{-1}\left(-\frac{1}{|\vec{k}|^2}\mathcal{F}_{\vec{k},\vec{x}'}\left(4\pi |\Psi(t,\vec{x}')|^2 \right) \right) \label{eqn:U PyUltralight}
+\end{align}
+Combining everything discussed so far, we now understand how to study the evolution of the Schrödinger field \( \Psi(t,\vec{x}) \). From equation \ref{eqn:Psi PyUltralight}, we see that starting from \( \Psi(t,\vec{x}) \), we multiply by \( \text{exp}\left[-i\frac{\epsilon}{2}U(t,\vec{x}) \right] \) (after solving Poisson’s equation), and then compute its Fourier transform:
+\begin{equation}
+    \mathcal{F}_{\vec{p},\vec{x}'}\left(\text{exp}\left[ -i\frac{\epsilon}{2}U(t,\vec{x})\right] \Psi(t,\vec{x}') \right)=\int \frac{d^{3}x'}{(2\pi)^{3/2}}e^{-i\vec{p}\cdot \vec{x}'}\text{exp}\left[ -i\frac{\epsilon}{2}U(t,\vec{x}')\right] \Psi(t,\vec{x}')
+\end{equation}
+Then, we multiply by \( \text{exp}\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] \) and compute the inverse Fourier transform:
+\begin{multline}
+    \mathcal{F}_{\vec{p},\vec{x}}^{-1}\left( \text{exp}\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right]\mathcal{F}_{\vec{p},\vec{x}'}\left(\text{exp}\left[ -i\frac{\epsilon}{2}U(t,\vec{x})\right] \Psi(t,\vec{x}') \right) \right)=\int \frac{d^{3}p}{(2\pi)^{3/2}}e^{i\vec{p}\cdot \vec{x}} \\ \text{exp}\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] \mathcal{F}_{\vec{p},\vec{x}'}\left(\text{exp}\left[ -i\frac{\epsilon}{2}U(t,\vec{x})\right] \Psi(t,\vec{x}') \right)
+\end{multline}
+Finally, we multiply the result by \( \text{exp}\left[ -i\frac{\epsilon}{2}U(t+\epsilon,\vec{x})\right] \) to obtain \( \Psi(t+\epsilon,\vec{x}) \).\\
+This last step may seem problematic, since to calculate \( U(t+\epsilon,\vec{x}) \), we would need to know \( \Psi(t+\epsilon,\vec{x}) \), which is exactly what we seek. However, we must remember that the source of \( U(t+\epsilon,\vec{x}) \) is not \( \Psi(t+\epsilon,\vec{x}) \) but rather \( 4\pi |\Psi(t+\epsilon,\vec{x})|^2 \), so a global phase in \( \Psi(t+\epsilon,\vec{x}) \) does not affect \( U(t+\epsilon,\vec{x}) \). Precisely, \( \text{exp}\left[-i\frac{\epsilon}{2}U(t+\epsilon,\vec{x}) \right] \) is a phase, so to compute \( U(t+\epsilon,\vec{x}) \), we don’t need to know it. It is sufficient to use:
+\begin{equation}
+    \mathcal{F}_{\vec{p},\vec{x}}^{-1}\left( \text{exp}\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right]\mathcal{F}_{\vec{p},\vec{x}'}\left(\text{exp}\left[ -i\frac{\epsilon}{2}U(t,\vec{x})\right] \Psi(t,\vec{x}') \right) \right)
+\end{equation}
+This quantity is already known. Once \( U(t+\epsilon,\vec{x}) \) is computed, everything can be combined to obtain equation \ref{eqn:Psi PyUltralight}, which gives \( \Psi(t+\epsilon,\vec{x}) \), i.e., the Schrödinger field after one time step \( \epsilon \).\\
+If we want to evolve another time step \( \epsilon \):
+\begin{multline}
+\Psi(t+2\epsilon,\vec{x})=\text{exp}\left[-i\frac{\epsilon}{2}U(t+2\epsilon,\vec{x}) \right] \mathcal{F}^{-1}_{\vec{p},\vec{x}}\text{exp}\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] \\ \mathcal{F}_{\vec{p},\vec{x}'}\left(\text{exp}\left[ -i\frac{\epsilon}{2}U(t+\epsilon,\vec{x})\right] \Psi(t+\epsilon,\vec{x}') \right) 
+\end{multline}
+So that:
+\begin{equation}
+\begin{aligned}
+\Psi(t+2\epsilon,\vec{x}) &= \exp\left[i\frac{\epsilon}{2}U(t+2\epsilon,\vec{x}) \right]  
+\bigg\{ 
+    \exp\left[-i\epsilon U(t+2\epsilon,\vec{x}) \right] 
+    \mathcal{F}_{\vec{p},\vec{x}}^{-1}
+    \exp\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] \\
+    &\quad
+    \mathcal{F}_{\vec{p},\vec{x}'} 
+    \exp\left[-i\epsilon U(t+\epsilon,\vec{x}) \right] 
+    \mathcal{F}_{\vec{p}',\vec{x}'}^{-1}
+    \exp\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] 
+    \mathcal{F}_{\vec{p}',\vec{x}''} \bigg\} \\
+    &\quad
+    \exp\left[-i\frac{\epsilon}{2}U(t,\vec{x}'') \right] 
+    \Psi(t,\vec{x}'')
+\end{aligned}
+\end{equation}
+Where:
+\begin{equation}
+    \left\{ \begin{array}{rcl}
+\exp\left[-i\epsilon U(t+2\epsilon,\vec{x}) \right] 
+    \mathcal{F}_{\vec{p},\vec{x}}^{-1}
+    \exp\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] \mathcal{F}_{\vec{p},\vec{x}'} &\rightarrow \text{First step} \\
+\exp\left[-i\epsilon U(t+\epsilon,\vec{x}) \right] 
+    \mathcal{F}_{\vec{p}',\vec{x}'}^{-1}
+    \exp\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] 
+    \mathcal{F}_{\vec{p}',\vec{x}''} &\rightarrow \text{Second step} \\
+\end{array}\right.
+\end{equation}
+Schematically, we can write:
+\begin{multline}
+    \Psi(t+n\epsilon)=\text{exp}\left[i\frac{\epsilon}{2}U(t+n\epsilon) \right] \left\{\prod_{j=1}^{n}\text{exp}\left[-i\epsilon U(t+j\epsilon) \right] \mathcal{F}^{-1}\text{exp}\left[-i\frac{\epsilon}{2}|\vec{p}|^2 \right] \mathcal{F}\right\} \\ \text{exp}\left[-i\frac{\epsilon}{2}U(t) \right]\Psi(t)
+\end{multline}
+
+\subsection*{Functioning of the i-Spin code}
+The i-Spin code works in a slightly different way, first recalling how PyUltraLight\cite{edwards2018pyultralight} operates:
+\begin{align}
+    \hat{U}(t+\epsilon,t)&=\exp \left[-\frac{i}{\hbar}\frac{\epsilon}{2}\left(\frac{\hat{p}^2}{m}+V(t,\hat{x})+V(t+\epsilon,\hat{x}) \right) \right] +\mathcal{O}(\epsilon^3) \\
+    \hat{U}(t+\epsilon,t)&=\exp \left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t+\epsilon,\hat{x}) \right] \exp \left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m} \right] \exp \left[-\frac{i}{\hbar}\frac{\epsilon}{2}V(t,\hat{x}) \right]+\mathcal{O}(\epsilon^3)
+\end{align}
+This is achieved using the identity shown in equation \ref{eqn:IntVPyUltraLight}, following the Kick-Drift-Kick structure. The i-Spin\cite{jain2023spin} code uses the identity from equation \ref{eqn:IntViSpin}, thus applying:
+\begin{equation}
+    \frac{1}{2}\left[V(t,\hat{x})+V(t+\epsilon,\hat{x}) \right]=V\left(t+\frac{\epsilon}{2},\hat{x}\right)+\mathcal{O}(\epsilon^2)
+\end{equation}
+The time evolution operator in i-Spin then takes the form:
+\begin{align}
+    \hat{U}(t+\epsilon,t)&=\exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{m}-\frac{i}{\hbar}\epsilon V\left(t+\frac{\epsilon}{2},\hat{x} \right) \right]+\mathcal{O}(\epsilon^3) \\
+    \hat{U}(t+\epsilon,t)&=\exp \left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{2m} \right] \exp \left[ -\frac{i}{\hbar}\epsilon V\left( t+\frac{\epsilon}{2},\hat{x}\right)\right]\exp \left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{\hat{p}^2}{2m} \right]+\mathcal{O}(\epsilon^3) \label{eqn:Ui-Spin}
+\end{align}
+Following the Drift-Kick-Drift structure. The expression in equation \ref{eqn:Ui-Spin} can be verified using the Baker-Campbell-Hausdorff identity (equation \ref{eqn:BCH}). Repeating the previous steps, one can derive the expression for the propagator:
+\begin{multline}
+ K(t+\epsilon,x;t,\vec{x}')=\frac{1}{(2\pi\hbar)^2}\int dp\,dx''\,dp''\, e^{\frac{ipx}{\hbar}}e^{-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{|\vec{p}|^2}{2m}}e^{-\frac{ipx''}{\hbar}} \\ e^{-\frac{i}{\hbar}\epsilon V\left(t+\frac{\epsilon}{2},\vec{x}''\right)}e^{\frac{ip''x''}{\hbar}}e^{-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{|\vec{p}''^2}{2m}}e^{-\frac{ip''x'}{\hbar}}
+\end{multline}
+From this, the expression for the Schrödinger field at time \( t+\epsilon \) can be obtained:
+\begin{multline}
+    \Psi(t+\epsilon,\vec{x})=\int\frac{dp}{\sqrt{2\pi\hbar}}e^{\frac{ipx}{\hbar}}e^{-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{p^2}{2m}}\int\frac{dx''}{\sqrt{2\pi\hbar}}e^{-\frac{ipx''}{\hbar}}e^{-\frac{i}{\hbar}\epsilon V\left(t+\frac{\epsilon}{2},x''\right)} \\ \int \frac{dp'}{\sqrt{2\pi \hbar}}e^{ip'x''}{\hbar}e^{-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{p'^2}{2m}}\int \frac{dx'}{\sqrt{2\pi \hbar}}e^{-\frac{ip'x'}{\hbar}}\Psi(t,x')
+\end{multline}
+By associating the integrals with forward and inverse Fourier transforms, we arrive at:
+\begin{multline}
+    \Psi(t+\epsilon,x)=\mathcal{F}_{p,x}^{-1}\exp\left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{p^2}{2m} \right] \mathcal{F}_{p,x''}\exp\left[-\frac{i}{\hbar}\epsilon V\left(t+\frac{\epsilon}{2},x'' \right) \right] \\ \mathcal{F}_{p',x''}^{-1}\exp \left[-\frac{i}{\hbar}\frac{\epsilon}{2}\frac{p'^2}{2m} \right] \mathcal{F}_{p',x'}\Psi(t,x')
+\end{multline}
+
+\bibliographystyle{plain}
+\bibliography{bibliografía}
+
+
+\end{document}
