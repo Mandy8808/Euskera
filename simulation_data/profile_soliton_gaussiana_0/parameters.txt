@@ -1,0 +1,62 @@
+soliton >>> [{'positions': [4.0, 0.0, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}, {'positions': [2.8284271247461903, 2.82842712474619, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}, {'positions': [2.4492935982947064e-16, 4.0, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}, {'positions': [-2.82842712474619, 2.8284271247461903, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}, {'positions': [-4.0, 4.898587196589413e-16, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}, {'positions': [-2.8284271247461907, -2.82842712474619, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}, {'positions': [-7.347880794884119e-16, -4.0, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}, {'positions': [2.8284271247461894, -2.8284271247461907, 0.0], 'velocities': [0.0, 0.0, 0.0], 'betas': [-0.9789591957601331], 'phases': [0.0], 'alphas': [10.641127159001808], 'dr': [1e-05]}]
+
+gaussian_function >>> [{'positions_gaussiana': [0, 0, 0], 'amplitude': 1.5, 'sigma': [0.5, 0.5, 0.5]}]
+
+lambda_value >>> 0.0
+
+num_threads >>> 11
+
+gridlength >>> 40
+
+resol >>> 160
+
+step_factor >>> 1.0
+
+t0 >>> 0
+
+tmax >>> 200
+
+rmax >>> 20
+
+Plim >>> 10
+
+cmass >>> 0
+
+methodEnerg >>> 1
+
+format >>> npz
+
+save_number >>> 400
+
+grid >>> True
+
+save_rho >>> False
+
+save_psi >>> False
+
+save_phi >>> False
+
+save_plane_rho >>> True
+
+save_plane_psi >>> False
+
+save_plane_phi >>> False
+
+save_line_rho >>> True
+
+save_line_psi >>> True
+
+save_line_phi >>> True
+
+save_energies >>> True
+
+Numb_Part >>> True
+
+Energ >>> True
+
+Pi >>> False
+
+Ji >>> False
+
+Frequency >>> True
+
