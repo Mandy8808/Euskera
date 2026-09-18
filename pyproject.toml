@@ -18,11 +18,11 @@ dependencies = [
     "numexpr",
     "numpy",
     "pandas",
-    "pyfftw",
     "scipy",
 ]
 
 [project.optional-dependencies]
+fftw = ["pyfftw"]
 test = ["pytest"]
 
 [tool.setuptools.packages.find]

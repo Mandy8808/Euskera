@@ -4,6 +4,8 @@ import numpy as np
 import pytest
 
 import euskera
+import background
+from euskera.main import potential
 from euskera.models.models import Models
 
 
@@ -11,6 +13,33 @@ def test_package_import_exposes_public_api():
     assert callable(euskera.evolve)
     assert callable(euskera.dtime)
     assert Models is euskera.Models
+
+
+def test_background_package_imports():
+    assert background.__name__ == "background"
+    assert callable(background.system)
+
+
+def test_potential_works_without_pyfftw(monkeypatch):
+    monkeypatch.setattr(potential, "pyfftw", None)
+    monkeypatch.setattr(potential, "pyfftwOpt", False)
+
+    rho_i = np.ones((1, 4, 4, 4))
+    distarray = np.ones((4, 4, 4))
+    rkarray2 = np.ones((4, 4, 3))
+
+    phisp, rho, fft_objects = potential.Upotential(
+        field_components=1,
+        rho_i=rho_i,
+        distarray=distarray,
+        rkarray2=rkarray2,
+        num_threads=1,
+        resol=4,
+    )
+
+    assert phisp.shape == (4, 4, 4)
+    assert rho.shape == (4, 4, 4)
+    assert fft_objects == (None, None)
 
 
 def test_gaussian_model_initializes_small_wavefunction():

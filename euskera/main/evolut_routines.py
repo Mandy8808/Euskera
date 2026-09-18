@@ -1,8 +1,6 @@
 # euskera v1.0
 # time-evolution routines file
 
-import os
-import sys
 import time
 import numpy as np
 import numexpr as ne
@@ -16,11 +14,6 @@ except ImportError:
     pyfftw = None
     pyfftwOpt = False
     
-# Get the parent directory dynamically
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_dir)
-
-# Import modules from subfolders
 from euskera.main import conserv_quant as cq
 from euskera.main import potential as pt
 from euskera.save import save_data as sv

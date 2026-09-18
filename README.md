@@ -2,53 +2,96 @@
     <img width="80%" src="galleries/encabezado.png">
 </p>
 
-
 <p float="left">
-<a href = "LICENSE.txt"> <img src="https://img.shields.io/badge/GNU GP license-green" alt="alt text"></a>
-<a href = "https://www.python.org"> <img src="https://img.shields.io/badge/Language-Python-blue" alt="alt text"> </a>
-<a href = "https://github.com/Mandy8808/GR_NS_BS?tab=readme-ov-file"> <img src="https://img.shields.io/badge/version-1.0-red" alt="alt text"> </a>
+<a href="LICENSE.txt"><img src="https://img.shields.io/badge/GNU%20GPL%20license-green" alt="GNU GPL license"></a>
+<a href="https://www.python.org"><img src="https://img.shields.io/badge/Language-Python-blue" alt="Python"></a>
 </p>
 
+# Euskera
 
-# Euskera time-evolution Schrodinger-Poisson/Gross-Pitaevskii-Poisson
+Euskera is a Python package for the numerical time evolution of
+Schrodinger-Poisson and Gross-Pitaevskii-Poisson systems. It extends the
+PyUltraLight approach with self-interaction, multi-frequency Proca stars and
+boson-star models.
 
-<img align="right" width="25%" src="galleries/image.png">
+The distribution contains two related namespaces:
 
-This repository presents a numerical Python code based on the public code [PyUltraLight](https://github.com/auckland-cosmo/PyUltraLight), which corresponds to a time-space evolution of the Schrödinger-Poisson system. The *Euskera* code generalizes the previous one by introducing a self-interaction term (which corresponds to the Gross-Pitaevskii-Poisson equation) and includes the possibility of working with multi-frequency Proca stars and boson stars. The details of the mathematical procedure are presented and discussed in ...
+- [`euskera/`](euskera/): time evolution, physical models, plotting and data
+  saving.
+- [`background/`](background/): background and spectral methods used to build
+  numerical profiles.
 
-<hr style="border:.2px solid gray">
+## Requirements
 
-> [!IMPORTANT]
-In order for the code to work correctly, the following packages are required:
+- Python 3.10 or newer.
+- NumPy, SciPy, NumExpr and Numba for the numerical core.
+- Matplotlib and Cycler for plotting.
+- h5py for HDF5 output.
+- pandas for spectral-method utilities.
+- IPython for video visualisation helpers.
 
-> Main codec
-- [NumPy](https://numpy.org)
-- [NumExpr](https://numexpr.readthedocs.io/en/latest/user_guide.html)
-- [Numba](https://numba.pydata.org)
-- [pyFFTW](https://pyfftw.readthedocs.io/en/latest/#introduction)
+`pyFFTW` is optional. When it is installed, Euskera uses it for accelerated
+Fourier transforms; otherwise it falls back to NumPy's FFT implementation.
 
-> Plotting routines:
-- [Matplotlib](https://matplotlib.org).
+FFmpeg is optional and is only needed when exporting generated animations to
+video.
 
-> To generate a video:
-- [FFmpeg](https://www.ffmpeg.org)
+## Installation
 
-By default, the code saves the output data in “npz” format, but [h5py](https://www.h5py.org) is also available if the respective packages are installed. Other packages such as os, sys, and multiprocessing are used, but they are included in Python versions higher than 2.6.
+Install the package from a clone of this repository:
 
-___
+```bash
+python -m pip install .
+```
 
-> [!NOTE]
-The published materials include:
+For development and tests:
 
-> [Main module](/euskera/)
+```bash
+python -m pip install ".[test]"
+```
 
-> [Illustrative examples](/examples/)
+To enable the optional FFTW acceleration:
 
-> [Numerical radial profiles](/Soliton%20Profile%20Files/)
+```bash
+python -m pip install ".[fftw]"
+```
 
-Additionally, we include some [script](/scripts/) implementations.
+The package can then be imported normally:
 
-If our code contributes to a project that leads to a publication, please acknowledge our work by citing it.
+```python
+import euskera
+import background
+```
 
-## Contact
-You can contact via email: alberto.diez(at)fisica.ugto.mx / arestrada(at)fisica.uaz.edu.mx / arestrada(at)fisica.ugto.mx
+## Quick checks
+
+Run the test suite with:
+
+```bash
+python -m pytest
+```
+
+Compile all package sources with:
+
+```bash
+python -m compileall euskera background
+```
+
+The repository includes example notebooks in [`examples/`](examples/),
+published profiles in [`profiles/`](profiles/), simulation data in
+[`simulation_data/`](simulation_data/) and example videos in
+[`galleries/Videos/`](galleries/Videos/).
+
+By default, simulation output is saved in NPZ format. HDF5 output is also
+available through the data-saving API when h5py is installed.
+
+## Citation and contact
+
+If Euskera contributes to a project that leads to a publication, please
+acknowledge the authors and cite the associated work.
+
+Contact:
+
+- alberto.diez(at)fisica.ugto.mx
+- arestrada(at)fisica.uaz.edu.mx
+- arestrada(at)fisica.ugto.mx

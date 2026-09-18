@@ -4,13 +4,12 @@
 import numpy as np
 import numexpr as ne
 
-# Check if pyFFTW is available
-#try:
-import pyfftw
-pyfftwOpt = True
-#except ImportError:
-#    pyfftw = None
-#    pyfftwOpt = False
+try:
+    import pyfftw
+    pyfftwOpt = True
+except ImportError:
+    pyfftw = None
+    pyfftwOpt = False
 
 
 #############################################################################
@@ -52,12 +51,13 @@ def Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=
             raise ValueError(f"`rho` must have shape ({field_components}, {resol}, {resol}, {resol}).")
     ################################################################################################################################
     
-    if obj and pyfftwOpt:   # check if the pyfftwOpt object was previously built
+    use_cached_fftw = obj is not None and pyfftwOpt
+    if use_cached_fftw:
         rfft_rho, irfft_phi = obj
         
     # Compute FFT of rho = Sum_j |ψ_j(x, tᵢ)|²
     rho = np.sum(rho_i, axis=0)  # ne.evaluate("sum(rho_i, axis=0)")
-    if not obj:
+    if not use_cached_fftw:
         if pyfftwOpt:
             rfft_rho = pyfftw.builders.rfftn(rho, axes=(0, 1, 2), threads=num_threads)   # Return a pyfftw.FFTW object representing an n-D real FFT
             phik = rfft_rho(rho)  # Compute the N-dimensional discrete Fourier Transform for real input rho=|psi|^2 (i.e. Fourier(rho))
@@ -75,15 +75,14 @@ def Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=
                        # This imply there is no need to subtract the global average density <|\psi|^2>.
     
     # Inverse FFT to obtain real-space potential
-    if not obj:
+    if not use_cached_fftw:
         # Initialize potential field
         if pyfftwOpt:
             phisp = pyfftw.zeros_aligned((field_components, resol, resol, resol), dtype='float64')
             irfft_phi = pyfftw.builders.irfftn(phik, axes=(0, 1, 2), threads=num_threads)   # Return a pyfftw.FFTW object representing an n-D real inverse FFT.
             phisp = irfft_phi(phik)   # Compute the N-dimensional discrete inverse FFT for real inputphik (i.e.  F^{-1} (-/k^2) F 4pi |psi(\vec{x}, t_i)|^2)
         else:
-            print("WARNING: pyFFTW not available, using NumPy instead.")
-            phisp = np.fft.irfftn(rho, axes=(0, 1, 2))
+            phisp = np.fft.irfftn(phik, s=rho.shape, axes=(0, 1, 2))
     else:
         phisp = irfft_phi(phik)
                 
@@ -92,4 +91,5 @@ def Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=
                         global_dict={'distarray': np.where(distarray == 0, np.inf, distarray), 
                                      'cmass': cmass, 'phisp': phisp})
 
-    return (phisp, rho) if obj else (phisp, rho, (rfft_rho, irfft_phi))
+    fft_objects = (rfft_rho, irfft_phi) if pyfftwOpt else (None, None)
+    return (phisp, rho) if obj is not None else (phisp, rho, fft_objects)
