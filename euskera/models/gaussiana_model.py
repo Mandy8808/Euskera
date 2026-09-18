@@ -74,6 +74,8 @@ class Gaussiana_Model():
         
         for posGauss, amp, sig in dat_conf_Parameters:
             amp = 1.0 if amp is None else amp
+            posGauss = np.asarray(posGauss, dtype=np.float64)
+            sig = np.asarray(sig, dtype=np.float64)
             psi = add_gaussian(psi, xarray, yarray, zarray, posGauss, sig, amp=amp)
 
         # Compute the density profile for every component
