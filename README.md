@@ -1,146 +1,169 @@
-<p align="center" width="160%">
-    <img width="80%" src="galleries/encabezado.png" alt="Euskera">
+<p align="center">
+  <img src="galleries/encabezado.png" width="760" alt="Euskera">
 </p>
 
-<p float="left">
-<a href="LICENSE.txt"><img src="https://img.shields.io/badge/GNU%20GPL%20license-green" alt="GNU GPL license"></a>
-<a href="https://www.python.org"><img src="https://img.shields.io/badge/Language-Python-blue" alt="Python"></a>
-<a href="https://github.com/Mandy8808/Euskera/actions/workflows/ci.yml"><img src="https://github.com/Mandy8808/Euskera/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+<p align="center">
+  <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-GNU%20GPL-green" alt="GNU GPL license"></a>
+  <a href="https://www.python.org"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10 or newer"></a>
+  <a href="https://github.com/Mandy8808/Euskera/actions/workflows/ci.yml"><img src="https://github.com/Mandy8808/Euskera/actions/workflows/ci.yml/badge.svg" alt="Continuous integration"></a>
 </p>
 
 # Euskera
 
-Euskera is a Python package for the numerical time evolution of the
-Schrodinger-Poisson and Gross-Pitaevskii-Poisson systems. It is based on the
-public code [PyUltraLight](https://github.com/auckland-cosmo/PyUltraLight).
+Euskera is a Python code for constructing and evolving self-gravitating
+quantum fields. It contains numerical tools for the
+[Schrödinger-Poisson (SP)](#theoretical-scope) and
+Gross-Pitaevskii-Poisson (GPP) systems, together with models for solitons,
+boson stars and Proca stars.
 
-The project extends the original approach by adding a self-interaction term
-and support for multi-frequency Proca stars and boson-star models. The
-mathematical and numerical procedure is described in the reference material
-included in [`references/`](references/).
+The repository is both a Python distribution and a collection of scientific
+resources. Use the links below to navigate directly to the part you need.
 
-The distribution combines two related packages:
+## Navigation
 
-- [`euskera/`](euskera/): time evolution, physical models, grids, potentials,
-  conserved quantities, plotting and data saving.
-- [`background/`](background/): background solutions, spectral methods,
-  profile construction and related plotting utilities.
+- [Theoretical scope](#theoretical-scope)
+- [Repository map](#repository-map)
+- [Installation](#installation)
+- [First steps](#first-steps)
+- [Examples and scientific resources](#examples-and-scientific-resources)
+- [Development and validation](#development-and-validation)
+- [Citation and contact](#citation-and-contact)
 
-## Project contents
+## Theoretical scope
 
-| Path | Description |
+The SP system describes a non-relativistic, self-gravitating scalar field
+without self-interaction. In schematic form,
+
+```text
+i dPsi/dt = -(1/2) Laplacian(Psi) + U Psi
+Laplacian(U) = 4 pi G rho
+```
+
+Euskera extends this framework with a nonlinear self-interaction term, giving
+the GPP system. The same numerical evolution machinery can be initialized
+with different field configurations, including:
+
+- soliton profiles;
+- Gaussian perturbations;
+- ellipsoidal boson-star configurations;
+- Proca-star configurations, including multi-frequency cases.
+
+The evolution uses a split-step Fourier method. Spatial grids, potentials,
+conserved quantities, profile generation and saved-output visualisation are
+exposed through the package API. The mathematical background and numerical
+derivation are collected in [`references/`](references/), especially
+[`references/main.tex`](references/main.tex) and
+[`references/SP_system.pdf`](references/SP_system.pdf).
+
+## Repository map
+
+The distribution is the union of two importable Python packages:
+
+| Path | Role |
 | --- | --- |
-| [`euskera/`](euskera/) | Main simulation and modelling package |
-| [`background/`](background/) | Background and spectral-method package |
-| [`examples/`](examples/) | Jupyter notebooks showing representative workflows |
-| [`profiles/`](profiles/) | Published numerical radial profiles |
-| [`simulation_data/`](simulation_data/) | Example simulation outputs |
+| [`euskera/`](euskera/) | Main evolution code, field models, grids, potentials, plotting and data saving |
+| [`background/`](background/) | Background solutions, spectral methods and radial-profile tools |
+
+The rest of the repository contains supporting scientific material:
+
+| Path | Contents |
+| --- | --- |
+| [`examples/`](examples/) | Jupyter notebooks for initialization, evolution and visualisation |
+| [`profiles/`](profiles/) | Numerical radial profiles used by the examples |
+| [`simulation_data/`](simulation_data/) | Representative saved simulation outputs |
 | [`galleries/`](galleries/) | Figures and example videos |
-| [`references/`](references/) | Scientific reference material and bibliography |
-| [`tests/`](tests/) | Automated package and smoke tests |
-
-## Requirements
-
-Euskera requires Python 3.10 or newer.
-
-The core dependencies are:
-
-- [NumPy](https://numpy.org)
-- [SciPy](https://scipy.org)
-- [NumExpr](https://numexpr.readthedocs.io/)
-- [Numba](https://numba.pydata.org/)
-- [Matplotlib](https://matplotlib.org/)
-- [Cycler](https://cycler.readthedocs.io/)
-- [h5py](https://www.h5py.org/)
-- [pandas](https://pandas.pydata.org/)
-- [IPython](https://ipython.org/)
-
-[`pyFFTW`](https://pyfftw.readthedocs.io/) is optional. When installed, it
-provides accelerated Fourier transforms. If it is not installed, Euskera uses
-the NumPy FFT implementation instead.
-
-[FFmpeg](https://ffmpeg.org/) is also optional and is only needed to export
-animations to video.
+| [`references/`](references/) | Equations, bibliography and source material |
+| [`tests/`](tests/) | Import, initialization and fallback tests |
+| [`pyproject.toml`](pyproject.toml) | Package metadata and dependency declarations |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Continuous-integration workflow |
 
 ## Installation
 
-### From a local clone
+Euskera supports Python 3.10 and newer.
+
+Install the package from a local clone:
 
 ```bash
 python -m pip install .
 ```
 
-For development and testing:
+For development and tests:
 
 ```bash
-python -m pip install ".[test]"
+python -m pip install -e ".[test]"
 ```
 
-To enable the optional FFTW acceleration:
+The optional [pyFFTW](https://pyfftw.readthedocs.io/) acceleration can be
+installed with:
 
 ```bash
 python -m pip install ".[fftw]"
 ```
 
-After installation, both parts of the distribution are importable:
+`pyFFTW` is not required. Without it, Fourier transforms use NumPy. FFmpeg is
+also optional and is only needed when exporting animations to video.
+
+The package has two public top-level imports:
 
 ```python
 import euskera
 import background
 ```
 
-### Development environment
+## First steps
 
-The repository contains the package metadata in
-[`pyproject.toml`](pyproject.toml). An editable installation is useful when
-developing:
+The main evolution entry point is `euskera.evolve`. The model registry
+currently provides:
 
-```bash
-python -m pip install -e ".[test]"
+```text
+soliton
+gaussian_function
+ell_boson
+proca
 ```
 
-The repository CI tests Python 3.10 through 3.14 and verifies installation,
-compilation and the automated tests.
-
-## Basic usage
-
-The main entry point for a time evolution is `euskera.evolve`. Models are
-selected by name and configured through parameter dictionaries. For example,
-the public API can be inspected with:
+The notebooks in [`examples/`](examples/) are the best source for complete
+parameter configurations. A minimal API smoke check is:
 
 ```python
 import euskera
+import background
 
 print(euskera.Models)
 print(euskera.evolve)
+print(background.system)
 ```
 
-Available model names are:
+Simulation output is written as NPZ by default. HDF5 output is available
+through the saving API when `h5py` is installed. Generated output should
+normally be written to a local directory rather than added to version
+control.
 
-- `soliton`
-- `gaussian_function`
-- `ell_boson`
-- `proca`
+## Examples and scientific resources
 
-The notebooks in [`examples/`](examples/) contain complete configurations for
-the supported models, profile generation, collision simulations and
-visualisation of saved data. They should be used as the authoritative examples
-for the detailed parameter shapes.
+The examples cover:
 
-By default, simulation output is saved in NPZ format. HDF5 output is available
-through the data-saving API when `h5py` is installed. Simulation output should
-normally be written to a local output directory rather than committed to the
-repository.
+- construction of initial profiles;
+- Gaussian, soliton, boson-star and Proca-star simulations;
+- collisions and multi-frequency configurations;
+- extraction and visualisation of saved data;
+- frequency and oscillation analysis.
 
-## Validation and development commands
+The repository also includes published profiles, representative simulation
+data and videos so that results can be inspected without running a complete
+simulation. The scientific description is available in
+[`references/main.tex`](references/main.tex), with bibliography data in
+[`references/bibliografía.bib`](references/bibliografía.bib).
 
-Run the tests:
+## Development and validation
+
+Run the test suite:
 
 ```bash
 python -m pytest
 ```
 
-Compile the Python sources:
+Compile both packages:
 
 ```bash
 python -m compileall euskera background
@@ -152,22 +175,19 @@ Build a wheel:
 python -m pip wheel . --no-deps
 ```
 
-## Scientific material and citation
+The GitHub Actions workflow tests the package on Python 3.10, 3.11, 3.12,
+3.13 and 3.14. It installs the package, compiles the sources and runs the
+tests.
 
-The [`references/`](references/) directory contains the current reference
-material, including the system description, bibliography and source document.
-The repository also includes published profiles and representative simulation
-outputs for comparison and visualisation.
+## Citation and contact
 
-If Euskera contributes to a project that leads to a publication, please
-acknowledge the authors and cite the associated work.
-
-## License
-
-This project is distributed under the GNU GPL license. See
+The project is distributed under the GNU GPL license; see
 [`LICENSE.txt`](LICENSE.txt).
 
-## Contact
+If Euskera contributes to a project that leads to a publication, please
+acknowledge the authors and cite the associated scientific work.
+
+Contact:
 
 - alberto.diez(at)fisica.ugto.mx
 - arestrada(at)fisica.uaz.edu.mx
