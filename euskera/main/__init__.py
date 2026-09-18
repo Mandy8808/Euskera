@@ -20,10 +20,9 @@ __all__ = [
            'Upotential',
            
            # conserved
-           'Conserv', 'Npar', 'Energ, ''centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi',
+           'Conserv', 'Npar', 'Energ', 'centpotetE', 'selfinterCondensateE', 'selfinterFieldE', 'kintE', 'Pi',
            
            # frequency
            'main_frequency', 'frequMet1', 'frequMet2'
            
            ]
-

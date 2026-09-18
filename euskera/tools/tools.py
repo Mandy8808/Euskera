@@ -94,13 +94,40 @@ def dtime(tmax, gridlength, resol, step_factor, save_number):
         its_per_save (int): Iterations per save step.
     """
     
+    values = {
+        "tmax": tmax,
+        "gridlength": gridlength,
+        "resol": resol,
+        "step_factor": step_factor,
+        "save_number": save_number,
+    }
+    for name, value in values.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(f"{name} must be a real number.")
+        if not np.isfinite(value):
+            raise ValueError(f"{name} must be finite.")
+
+    if tmax <= 0:
+        raise ValueError("tmax must be greater than zero.")
+    if gridlength <= 0:
+        raise ValueError("gridlength must be greater than zero.")
+    if resol <= 0 or int(resol) != resol:
+        raise ValueError("resol must be a positive integer.")
+    if step_factor <= 0:
+        raise ValueError("step_factor must be greater than zero.")
+    if save_number <= 0 or int(save_number) != save_number:
+        raise ValueError("save_number must be a positive integer.")
+
+    resol = int(resol)
+    save_number = int(save_number)
+
     # Compute spatial step size
     dx = gridlength/resol
     dt = dx**2/np.pi  # Default timestep
 
     # Compute the minimum number of time steps required
     min_num_steps = int(tmax/dt) + 1
-    min_num_steps_adjusted = min_num_steps // step_factor  # Apply step factor adjustment
+    min_num_steps_adjusted = max(1, int(min_num_steps // step_factor))
 
     if save_number >= min_num_steps_adjusted:
         print("WARNING: The min_num_steps_int was adjusted to match save_number")
@@ -110,7 +137,7 @@ def dtime(tmax, gridlength, resol, step_factor, save_number):
         # Ensure the total number of steps is a multiple of save_number
         rem = min_num_steps_adjusted % save_number
         actual_num_steps = min_num_steps_adjusted + save_number - rem
-        its_per_save = actual_num_steps / save_number  #  //
+        its_per_save = actual_num_steps // save_number
 
     # Compute final timestep
     ht = tmax / actual_num_steps

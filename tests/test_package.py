@@ -5,7 +5,10 @@ import pytest
 
 import euskera
 import background
+import euskera.main as euskera_main
 from euskera.main import potential
+from euskera.main.conserv_quant import Npar
+from euskera.main.grids import KGrid, RealGrid
 from euskera.models.models import Models
 
 
@@ -18,6 +21,16 @@ def test_package_import_exposes_public_api():
 def test_background_package_imports():
     assert background.__name__ == "background"
     assert callable(background.system)
+
+
+@pytest.mark.parametrize("module", [euskera, euskera_main, background])
+def test_public_exports_are_defined(module):
+    missing = [name for name in module.__all__ if not hasattr(module, name)]
+    assert not missing, f"{module.__name__} has missing exports: {missing}"
+
+    namespace = {}
+    exec(f"from {module.__name__} import *", namespace)
+    assert all(name in namespace for name in module.__all__)
 
 
 def test_potential_works_without_pyfftw(monkeypatch):
@@ -40,6 +53,62 @@ def test_potential_works_without_pyfftw(monkeypatch):
     assert phisp.shape == (4, 4, 4)
     assert rho.shape == (4, 4, 4)
     assert fft_objects == (None, None)
+
+
+def test_potential_is_finite_and_has_zero_mean_for_localized_density(monkeypatch):
+    monkeypatch.setattr(potential, "pyfftw", None)
+    monkeypatch.setattr(potential, "pyfftwOpt", False)
+
+    (_, _, _,), distarray = RealGrid(gridlength=4.0, resol=8)
+    _, rkarray2 = KGrid(gridlength=4.0, resol=8, realspace=True)
+    coordinates = np.linspace(-1.75, 1.75, 8)
+    x, y, z = np.meshgrid(coordinates, coordinates, coordinates, indexing="ij")
+    rho_i = np.exp(-(x**2 + y**2 + z**2))[None, ...]
+
+    phisp, rho, _ = potential.Upotential(
+        field_components=1,
+        rho_i=rho_i,
+        distarray=distarray,
+        rkarray2=rkarray2,
+        num_threads=1,
+        resol=8,
+    )
+
+    assert np.isfinite(phisp).all()
+    assert np.isfinite(rho).all()
+    assert np.isclose(phisp.mean(), 0.0, atol=1e-12)
+
+
+def test_particle_number_matches_discrete_norm():
+    psi = np.array([[[[1.0 + 0.0j, 2.0 + 0.0j]]]])
+    total, components = Npar(psi, Vcell=0.5)
+
+    assert components == [2.5]
+    assert total == 2.5
+
+
+@pytest.mark.parametrize(
+    ("arguments", "exception"),
+    [
+        ((0.0, 10.0, 128, 1.0, 10), ValueError),
+        ((1.0, 0.0, 128, 1.0, 10), ValueError),
+        ((1.0, 10.0, 0, 1.0, 10), ValueError),
+        ((1.0, 10.0, 128, 0.0, 10), ValueError),
+        ((1.0, 10.0, 128, 1.0, 0), ValueError),
+        ((1.0, 10.0, 128.5, 1.0, 10), ValueError),
+    ],
+)
+def test_dtime_rejects_invalid_arguments(arguments, exception):
+    with pytest.raises(exception):
+        euskera.dtime(*arguments)
+
+
+def test_dtime_returns_integer_save_interval():
+    ht, its_per_save, num_steps = euskera.dtime(1.0, 10.0, 16, 1.0, 4)
+
+    assert ht > 0
+    assert its_per_save == int(its_per_save)
+    assert num_steps % 4 == 0
 
 
 def test_gaussian_model_initializes_small_wavefunction():

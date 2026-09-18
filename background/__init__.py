@@ -28,4 +28,4 @@ __all__ = [
     #
     'cheb', 'chevQuant', 'backgroundOper', 'linBlock', 'circBlock', 'radBlock', 'MultMii', 'MultMij',
     'Organize', 'Reference_row', 'Organize_row', 'LamJval',
-    'multBlock', 'espectro', 'LamJval', 'sep', 'progressbar', 'plotImag']
+    'multBlock', 'espectro', 'sep', 'progressbar', 'plotImag']
