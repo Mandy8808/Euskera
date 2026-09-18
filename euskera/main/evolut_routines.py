@@ -21,10 +21,10 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.append(parent_dir)
 
 # Import modules from subfolders
-import main.potential as pt
-import tools.tools as to
-import save.save_data as sv
-import main.conserv_quant as cq
+from euskera.main import conserv_quant as cq
+from euskera.main import potential as pt
+from euskera.save import save_data as sv
+from euskera.tools import tools as to
 
 ###################################################################################################
 

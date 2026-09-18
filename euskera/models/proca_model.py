@@ -1,8 +1,6 @@
 # euskera v1.0
 # ell_boson_model file
 
-import sys
-import os
 import numpy as np
 import numexpr as ne
 
@@ -15,12 +13,8 @@ except ImportError:
     pyfftwOpt = False  
 
 
-# Get the parent directory dynamically
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_dir)
-
-import main.grids as gd
-import tools.tools as to
+from euskera.main import grids as gd
+from euskera.tools import tools as to
 ###################################################################################################
 
 # ============================================================

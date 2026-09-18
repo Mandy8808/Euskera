@@ -1,16 +1,10 @@
 # euskera v1.0
 # models file
 
-import sys
-import os
-
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ""))
-sys.path.append(parent_dir)
-
-import models.soliton_model as sm
-import models.gaussiana_model as gm
-import models.ell_model as ell_m
-import models.proca_model as proc_m
+from euskera.models import ell_model as ell_m
+from euskera.models import gaussiana_model as gm
+from euskera.models import proca_model as proc_m
+from euskera.models import soliton_model as sm
 
 ###################################################################################################
 

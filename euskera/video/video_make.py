@@ -8,7 +8,7 @@ import matplotlib.animation as animation
 from matplotlib.collections import LineCollection
 from IPython.display import HTML
 
-import plots as pl
+from euskera.plots import plot_tools as pl
 
 #############################################################################
 class Visualization:

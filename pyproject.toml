@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "euskera"
+version = "1.0.0"
+description = "Numerical time evolution for Schrodinger-Poisson and Gross-Pitaevskii-Poisson systems"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE.txt"}
+dependencies = [
+    "cycler",
+    "h5py",
+    "ipython",
+    "matplotlib",
+    "numba",
+    "numexpr",
+    "numpy",
+    "pandas",
+    "pyfftw",
+    "scipy",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["euskera*", "background*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["-ra"]

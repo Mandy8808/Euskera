@@ -1,8 +1,6 @@
 # Proyecto proca v.1.0
 # Plot configurations
 
-import os
-import sys
 import warnings
 import numpy as np
 
@@ -14,15 +12,7 @@ from scipy.integrate import solve_ivp
 from cycler import cycler
 from matplotlib.collections import LineCollection
 
-##############
-# Get the parent directory
-parent_dir =  os.path.abspath(os.path.join(os.path.dirname("Modules/Background/background.py"), ""))
-
-# Add it to sys.path
-sys.path.append(parent_dir)
-
-# Now you can import the module
-import background as bg  # Import from the parent folder (modules)
+import background as bg
 
 ################
 ## SET OF COLORS

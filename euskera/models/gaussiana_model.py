@@ -1,10 +1,8 @@
 # euskera v1.0
 # gaussiana_model file
 
-import sys
-import os
 import numpy as np
-import numexpr as ne 
+import numexpr as ne
 
 from numba import njit, prange, set_num_threads
 
@@ -14,10 +12,7 @@ try:
 except ImportError:
     pyfftwOpt = False
 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ""))
-sys.path.append(parent_dir)
-
-import main.grids as gd
+from euskera.main import grids as gd
 
 ###################################################################################################
 

@@ -1,0 +1,60 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local Python environments
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# Packaging/build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+MANIFEST
+
+# Jupyter local state and checkpoints
+.ipynb_checkpoints/
+
+# IDE/editor metadata
+.idea/
+.vscode/*
+!.vscode/settings.example.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Local secrets and configuration
+.env
+.env.*
+!.env.example
+
+# Simulation outputs generated locally.
+# Keep curated data already committed to the repository.
+Data/
+data/
+output/
+outputs/
+results/
+*.log
+
+# Temporary files
+*.swp
+*.swo
+*~

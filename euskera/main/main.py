@@ -1,8 +1,6 @@
 # euskera v1.0
 # main file
 
-import sys
-import os
 import numexpr as ne
 import numpy as np
 
@@ -14,20 +12,14 @@ except ImportError:
     pyfftw = None
     pyfftwOpt = False
 
-# Get the parent directory dynamically
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(parent_dir)
-
-# Import modules from subfolders
-
-import tools.tools as to
-import models.models as md
-import main.grids as gd
-import main.potential as pt
-import plots.plot_tools as pl
-import main.evolut_routines as ev
-import save.save_data as sv
-import main.conserv_quant as cq
+from euskera.main import conserv_quant as cq
+from euskera.main import evolut_routines as ev
+from euskera.main import grids as gd
+from euskera.main import potential as pt
+from euskera.models import models as md
+from euskera.plots import plot_tools as pl
+from euskera.save import save_data as sv
+from euskera.tools import tools as to
 
 ###################################################################################################
 
@@ -186,7 +178,5 @@ def evolve(model_parameters,
                         info=info)
     ################################################################################################################
     return None
-
-
 
 

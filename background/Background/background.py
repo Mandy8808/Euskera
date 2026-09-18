@@ -2,21 +2,14 @@
 # Background
 # The referred equations can be found at https://arxiv.org/pdf/2412.06901.
 
-import os
-import sys
 import numpy as np
 import warnings
 
 from scipy.interpolate import interp1d
 from scipy.integrate import solve_ivp, quad
 
-##############
-# Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-# Now you can import the module
-from Plot import plot_conf as cplot # Import from the parent folder (modules)
-from EnergyMass import energy_mass as em
+from background.EnergyMass import energy_mass as em
+from background.Plot import plot_conf as cplot
 
 
 ########################
