@@ -1,8 +1,4 @@
-"""Canonical background-solution workflows.
-
-The old ``background`` module remains a compatibility facade; new code should
-import from these responsibility-focused modules.
-"""
+"""Canonical background-solution workflows."""
 from .systems import *
 from .profiles import *
 from .asymptotics import *

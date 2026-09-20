@@ -63,7 +63,7 @@ The distribution is the union of two importable Python packages:
 | Path | Role |
 | --- | --- |
 | [`euskera/`](euskera/) | Main evolution code, field models, grids, potentials, plotting and data saving |
-| [`background/`](background/) | Background solutions, spectral methods and radial-profile tools |
+| [`euskera/backgrounds/`](euskera/backgrounds/) | Background solutions, spectral methods and radial-profile tools |
 
 The rest of the repository contains supporting scientific material:
 

@@ -27,5 +27,27 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall euskera
 
+      - name: Import canonical namespaces
+        run: |
+          python - <<'PY'
+          import importlib
+
+          namespaces = (
+              "euskera",
+              "euskera.backgrounds",
+              "euskera.core",
+              "euskera.evolution",
+              "euskera.io",
+              "euskera.models",
+              "euskera.numerics",
+              "euskera.observables",
+              "euskera.tools",
+              "euskera.visualization",
+          )
+          for namespace in namespaces:
+              importlib.import_module(namespace)
+          print(f"Imported {len(namespaces)} canonical namespaces")
+          PY
+
       - name: Run tests
         run: python -m pytest

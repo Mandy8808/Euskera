@@ -1,8 +1,7 @@
 # Public API guide
 
-The public API is re-exported from `euskera`. The preferred imports are
-organized by workflow; the legacy `background` and `euskera.main` imports
-remain supported during migration.
+The public API is re-exported from `euskera`. Imports are organized by
+workflow and use only the canonical namespaces.
 
 ```python
 from euskera.evolution import evolve
@@ -67,10 +66,10 @@ euskera.evolve(model_parameters, evolution_config=evolution,
                output_config=output, diagnostics_config=diagnostics)
 ```
 
-The canonical configurations take precedence over legacy
-`simulation_parameters_update`, `salva_data_update` and
-`comp_conserv_update` values when both are supplied. Legacy mappings remain
-supported unchanged. `to_dict()` and `from_legacy()` bridge dataclasses and
+The canonical configurations take precedence over the compatibility mapping
+arguments `simulation_parameters_update`, `salva_data_update` and
+`comp_conserv_update` when both are supplied. These mappings remain supported
+unchanged. `to_dict()` and `from_legacy()` bridge dataclasses and
 the dictionaries consumed by the numerical kernels.
 
 Important simulation options include `lambda_value`, `num_threads`,
@@ -130,8 +129,7 @@ main entry points include:
 - `energEng` and `massVal` for energy and mass calculations.
 
 The canonical modules are `euskera.backgrounds.systems`, `.solvers`,
-`.multifrequency`, `.asymptotics`, `.profiles` and `.fitting`. The old
-top-level `background` package remains a compatibility facade:
+`.multifrequency`, `.asymptotics`, `.profiles` and `.fitting`:
 
 ```python
 from euskera.backgrounds import system

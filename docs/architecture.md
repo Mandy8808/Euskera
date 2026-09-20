@@ -20,8 +20,8 @@ Shared concerns have explicit namespaces:
 | `euskera.io` | Simulation input/output |
 | `euskera.visualization` | Plots and videos |
 
-The legacy `background` package and `euskera.main` modules remain available
-as compatibility surfaces while notebooks and downstream users migrate.
+There are no compatibility packages outside these canonical namespaces;
+notebooks and downstream users should import the workflow boundaries above.
 
 ## Evolution pipeline
 

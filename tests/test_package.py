@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 
 import euskera
-import background
-import euskera.main as euskera_main
-from euskera.main import potential
+import euskera.backgrounds as backgrounds
+import euskera.evolution as evolution
+from euskera.evolution import potential
 from euskera.observables.conserv_quant import Npar
 from euskera.core.grids import KGrid, RealGrid
 from euskera.models.models import Models
@@ -23,11 +23,11 @@ def test_package_import_exposes_public_api():
 
 
 def test_background_package_imports():
-    assert background.__name__ == "background"
-    assert callable(background.system)
+    assert backgrounds.__name__ == "euskera.backgrounds"
+    assert callable(backgrounds.system)
 
 
-@pytest.mark.parametrize("module", [euskera, euskera_main, background])
+@pytest.mark.parametrize("module", [euskera, evolution, backgrounds])
 def test_public_exports_are_defined(module):
     missing = [name for name in module.__all__ if not hasattr(module, name)]
     assert not missing, f"{module.__name__} has missing exports: {missing}"

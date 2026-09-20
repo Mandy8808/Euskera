@@ -28,8 +28,7 @@ from .models.ell_model import ell_Model, build_ell, compute_sph_harm_grid, inite
 from .models.gaussiana_model import Gaussiana_Model, build_1d_gaussian, add_gaussian
 from .models.proca_model import proca_Model, build_proca, compute_polarization_vec, initproca_kernel
 
-# Workflow-oriented namespaces. The legacy modules remain available for
-# backwards compatibility while new code can use these stable boundaries.
+# Workflow-oriented canonical namespaces.
 from . import backgrounds, core, evolution, io, numerics, observables, visualization
 from .evolution.config import EvolutionConfig
 from .io.config import OutputConfig

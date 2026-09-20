@@ -80,3 +80,13 @@ from euskera.backgrounds import system
 assert callable(euskera.evolve)
 assert callable(system)
 ```
+
+The test suite also runs a short, deterministic end-to-end Gaussian evolution
+with `EvolutionConfig` and `OutputConfig`, checking that output is written to
+the pytest temporary directory.  It validates finite potential and density
+arrays, the discrete particle-number invariant, finite RHS/profile
+observables for single- and multifrequency background systems. These checks
+use minimal grids and integration intervals; they are smoke tests, not
+physical convergence studies. Notebook coverage is intentionally lightweight:
+the suite exercises equivalent setup/API cells and never executes the
+heavy, data-producing notebooks end to end.
