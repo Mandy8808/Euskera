@@ -108,7 +108,7 @@ The package has two public top-level imports:
 
 ```python
 import euskera
-import background
+from euskera.backgrounds import system
 ```
 
 ## First steps
@@ -128,11 +128,11 @@ parameter configurations. A minimal API smoke check is:
 
 ```python
 import euskera
-import background
+from euskera.backgrounds import system
 
 print(euskera.Models)
 print(euskera.evolve)
-print(background.system)
+print(system)
 ```
 
 Simulation output is written as NPZ by default. HDF5 output is available
@@ -178,7 +178,7 @@ python -m pytest
 Compile both packages:
 
 ```bash
-python -m compileall euskera background
+python -m compileall euskera
 ```
 
 Build a wheel:

@@ -110,11 +110,13 @@ main entry points include:
 - `cheb` and the spectral-operator helpers for Chebyshev discretisation;
 - `energEng` and `massVal` for energy and mass calculations.
 
-The compatibility import remains valid:
+The canonical modules are `euskera.backgrounds.systems`, `.solvers`,
+`.multifrequency`, `.asymptotics`, `.profiles` and `.fitting`. The old
+top-level `background` package remains a compatibility facade:
 
 ```python
-import background
-background.system(...)
+from euskera.backgrounds import system
+system(...)
 ```
 
 The background API is lower-level than `euskera.evolve`; use the relevant

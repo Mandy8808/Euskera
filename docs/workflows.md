@@ -74,15 +74,15 @@ From the repository root:
 
 ```bash
 python -m pytest
-python -m compileall euskera background
+python -m compileall euskera
 ```
 
 For a lightweight API check:
 
 ```python
 import euskera
-import background
+from euskera.backgrounds import system
 
 assert callable(euskera.evolve)
-assert callable(background.system)
+assert callable(system)
 ```
