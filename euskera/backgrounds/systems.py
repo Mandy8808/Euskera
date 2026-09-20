@@ -18,6 +18,8 @@ def system(r, yV, arg):
 
     Returns:
         [f0, f1, f2, f3]
+
+    The referred equations can be found at https://arxiv.org/pdf/2412.06901
     """
 
     # Ensure yV has exactly four elements
@@ -64,6 +66,8 @@ def systemMultifrequency(r, yV, arg):
 
     Returns:
         Array of derivatives for each component
+
+    The referred equations can be found at https://arxiv.org/pdf/2412.06901
     """
 
     if len(arg) == 1:
@@ -110,6 +114,11 @@ def systemMultifrequency(r, yV, arg):
 
 def systemMultFreqTot(r, yVT, arg):
     """
+    Particular implementation of the paper https://arxiv.org/pdf/2208.13221
+    for the multifrequency system (52) of https://arxiv.org/pdf/2412.06901
+    for the case of three scalar fields,
+
+    Variables:
     syst -> System of equation with the structure: f(r, yV, arg)
             yV = [x1, x2, ..., xn, dx1c1, dx2c1, ..., dxnc1, ..., dx1cn, dx2cn, ..., dxncn]
             arg: arguments that will be passed to the system
