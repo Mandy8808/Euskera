@@ -1,6 +1,3 @@
-# euskera v1.0
-# video make file
-
 import os
 import numpy as np
 import matplotlib.animation as animation

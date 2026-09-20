@@ -139,6 +139,9 @@ system(...)
 The background API is lower-level than `euskera.evolve`; use the relevant
 notebook or source docstring when selecting a solver.
 
+Spectral methods are available from `euskera.spectral`; spectral diagnostic
+plots are provided by `euskera.visualization.spectral_plot`.
+
 ### Background plotting
 
 `euskera.visualization` provides `plotUsingPerf`, `plotUsingDiscSol`,

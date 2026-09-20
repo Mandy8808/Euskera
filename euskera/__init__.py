@@ -33,7 +33,7 @@ from .models.gaussiana_model import Gaussiana_Model, build_1d_gaussian, add_gaus
 from .models.proca_model import proca_Model, build_proca, compute_polarization_vec, initproca_kernel
 
 # Workflow-oriented canonical namespaces.
-from . import backgrounds, core, evolution, io, numerics, observables, visualization
+from . import backgrounds, core, evolution, io, numerics, observables, spectral, visualization
 from .evolution.config import EvolutionConfig
 from .io.config import OutputConfig
 from .observables.config import DiagnosticsConfig

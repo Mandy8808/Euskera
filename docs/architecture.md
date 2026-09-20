@@ -15,7 +15,8 @@ Shared concerns have explicit namespaces:
 | --- | --- |
 | `euskera.core` | Grids and shared field primitives |
 | `euskera.models` | Initial field models |
-| `euskera.numerics` | Spectral and other numerical methods |
+| `euskera.numerics` | General numerical methods |
+| `euskera.spectral` | Spectral discretisation, operators, and eigenvalue methods |
 | `euskera.observables` | Energy, mass and conserved quantities |
 | `euskera.io` | Simulation input/output |
 | `euskera.visualization` | Plots and videos |
