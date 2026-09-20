@@ -1,6 +1,7 @@
 """Plotting and video visualization helpers."""
 from .configuration import *
 from .plot_tools import *
+from .simulation_plots import *
 from .background_plots import (
     plotUsingPerf,
     plotUsingDiscSol,

@@ -17,7 +17,7 @@ from euskera.evolution import evolut_routines as ev
 from euskera.core import grids as gd
 from euskera.evolution import potential as pt
 from euskera.models import models as md
-from euskera.visualization import plot_tools as pl
+from euskera.visualization import simulation_plots as pl
 from euskera.io import save_data as sv
 from euskera.tools import tools as to
 from euskera.evolution.config import EvolutionConfig

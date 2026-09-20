@@ -21,7 +21,8 @@ from .io.save_data import data_Objgenerator, fdata_save, nameData, JoinFilesInOn
 
 # Plot configurations
 from .visualization.configuration import general, FigParam, LineParam, axesParam, labelParam, legendParam, fontParam
-from .visualization.plot_tools import colorBar_and_normaliz, ShowPlaneProf, PlaneProf, Plot3DCorrProf, imagshow2D, colored_line
+from .visualization.plot_tools import colorBar_and_normaliz, colored_line
+from .visualization.simulation_plots import ShowPlaneProf, PlaneProf, Plot3DCorrProf, imagshow2D
 from .visualization.background_plots import plotUsingPerf, plotUsingDiscSol, plotUsingSol, plotPerf
 
 # Models

@@ -6,6 +6,11 @@ in `euskera.visualization` and with the notebook
 The visualisation workflow can plot slices, profiles, densities, potentials
 and diagnostic histories; FFmpeg is only required for video export.
 
+Simulation-specific figures are implemented in
+`euskera.visualization.simulation_plots`. Reusable helpers such as
+`colorBar_and_normaliz` and `colored_line` live in
+`euskera.visualization.plot_tools`.
+
 Background profile plots are part of the same canonical namespace:
 `plotUsingPerf`, `plotUsingDiscSol`, `plotUsingSol` and `plotPerf` are
 available from `euskera.visualization` (and from the package root). Shared

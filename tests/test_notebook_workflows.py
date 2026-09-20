@@ -14,7 +14,7 @@ import numpy as np
 import euskera
 from euskera.io import OutputConfig
 from euskera.models.models import Models
-from euskera.visualization.plot_tools import imagshow2D
+from euskera.visualization.simulation_plots import imagshow2D
 
 
 def _gaussian_parameters():

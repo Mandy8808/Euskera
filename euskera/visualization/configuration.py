@@ -1,6 +1,3 @@
-# euskera v1.0
-# plot_configuration file
-
 import matplotlib as mpl
 import matplotlib.font_manager as font_manager
 
