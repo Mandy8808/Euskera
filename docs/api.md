@@ -139,6 +139,14 @@ system(...)
 The background API is lower-level than `euskera.evolve`; use the relevant
 notebook or source docstring when selecting a solver.
 
+`fitting(..., active=None)` solves the full boundary correction by default.
+For identically zero fields, supply a boolean mask in matching unknown and
+boundary-equation order, for example `active=[True, True, False]`.
+`algebSyst(arg, active=None, info=False)` applies that mask only to the linear
+solve; inactive unknowns are zero and the augmented state retains its shape.
+See the [fitting workflow](workflows/background-fitting.md) and
+[migration notes](migration.md) for replacing `remNul`.
+
 Spectral methods are available from `euskera.spectral`; spectral diagnostic
 plots are provided by `euskera.visualization.spectral_plot`.
 

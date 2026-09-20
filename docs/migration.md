@@ -21,3 +21,17 @@ These objects may be passed alongside dictionary model parameters. When both
 legacy mappings and typed settings are supplied, explicit typed settings win
 on overlapping evolution/output/diagnostic keys. No model names or numerical
 algorithms changed. See [API](api.md) and [simulations](simulations.md).
+
+## Explicit active fields in background fitting
+
+`fitting` now accepts `active=None` as its final optional argument and passes
+it to `algebSyst`. The latter replaces `remNul` with `active`: replace
+`remNul=False` with `active=None`; replace `remNul=True` with a boolean mask
+such as `active=[True, True, False]`, based on the physical configuration.
+Update positional calls as well; a single boolean is not an active-field mask.
+
+Omitting the mask now solves the complete correction system, even when the
+right-hand side contains zeros. Configurations with inactive fields must pass
+their mask explicitly to avoid a singular full system. The augmented ODE state
+and downstream profile format are unchanged. See the
+[fitting workflow](workflows/background-fitting.md) for the notebook pipeline.

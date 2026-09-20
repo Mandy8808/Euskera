@@ -66,12 +66,12 @@ def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
 
    # Index patterns for different polarizations
    index_patterns = {
-        "linear": zip([0, 1, 2], [0, 1, 2]),
-        "circular": zip([0, 0, 1, 1, 2], [0, 1, 0, 1, 2]),
-        "radial": zip([0, 0, 1, 1, 2], [0, 1, 0, 1, 2]),
-        "multifrequency": zip([0, 0, 0, 1, 1, 1, 2, 2, 2],
-                              [0, 1, 2, 0, 1, 2, 0, 1, 2])
-   }
+      "linear": zip([0, 0, 1, 1, 2], [0, 1, 0, 1, 2]),
+      "circular": zip([0, 0, 1, 1, 2], [0, 1, 0, 1, 2]),
+      "radial": zip([0, 0, 1, 1, 2], [0, 1, 0, 1, 2]),
+      "multifrequency": zip([0, 0, 0, 1, 1, 1, 2, 2, 2],
+                            [0, 1, 2, 0, 1, 2, 0, 1, 2],),
+      }
 
    # Validate polarization
    if polariz not in blockPola:

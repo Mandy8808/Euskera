@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Preserved sparse Fourier-grid axes in conserved quantities so kinetic energy
+  method 2 differentiates along x, y and z correctly. Added analytic plane-wave
+  checks for both kinetic methods and multiple field components.
+
+- Replaced right-hand-side zero detection in background fitting with an
+  explicit `active` field mask. Updated the background notebook pipeline and
+  migration guide; added coupled-system and full augmented-ODE regression tests.
+
 ## 1.1.0
 
 - Added reproducible, lightweight smoke coverage for initial profiles, short

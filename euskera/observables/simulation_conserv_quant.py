@@ -22,7 +22,7 @@ def Conserv(data, comp_conserv, simulation_parameters,
         raise ValueError("Ji diagnostics are not implemented; set Ji=False.")
 
     psi, rho, phisp, distarray, karray2, kvec = data
-    kvec2 = [kvec[0].flatten(), kvec[1].flatten(), kvec[2].flatten()]
+    # Preserve sparse grid shapes so each frequency vector acts on its own axis.
 
     # Parameters
     resol = simulation_parameters["resol"]
@@ -46,20 +46,28 @@ def Conserv(data, comp_conserv, simulation_parameters,
     # Define available functions
     comp = {
         "Numb_Part": "Npar(psi, Vcell)", #"Numb_Part": "Npar(rho, Vcell)",
-        "Energ": "Energ(rho, psi, phisp, Vcell, distarray, karray2, kvec2, obj2, simulation_parameters, method=methodEnerg)",
-        "Pi": "Pi(psi, kvec2, Vcell, obj2)", "Ji": None,
+        "Energ": "Energ(rho, psi, phisp, Vcell, distarray, karray2, kvec, obj2, simulation_parameters, method=methodEnerg)",
+        "Pi": "Pi(psi, kvec, Vcell, obj2)", "Ji": None,
         "Frequency": "psiData(psi, max_pos)"
     }
 
     indx = indy = indz = None
     # Restrict eval() to known functions
-    safe_globals = {"Npar": Npar, "Energ": Energ, "Pi": Pi, "rho": rho, "psi": psi,
-                    "phisp": phisp, "Vcell": Vcell, "distarray": distarray,
-                    "karray2": karray2, "kvec2": kvec2, "obj2": obj2,
-                    "simulation_parameters": simulation_parameters, "methodEnerg": methodEnerg,
-                    "psiData": psiData, "max_pos": max_pos
+    safe_globals = {"Npar": Npar, 
+                    "Energ": Energ, 
+                    "Pi": Pi, 
+                    "rho": rho, 
+                    "psi": psi,
+                    "phisp": phisp, 
+                    "Vcell": Vcell, 
+                    "distarray": distarray,
+                    "karray2": karray2, 
+                    "kvec": kvec, 
+                    "obj2": obj2,
+                    "simulation_parameters": simulation_parameters, 
+                    "methodEnerg": methodEnerg,
+                    "psiData": psiData, "max_pos": max_pos,
     }
-
 
     data_out = [eval(comp[cant], safe_globals) for cant, opt in comp_conserv.items() if opt and cant in comp]
 
@@ -142,16 +150,20 @@ def centpotetE(rho, distarray, simulation_parameters):
 
 def selfinterCondensateE(rho, phisp, distarray, simulation_parameters):
     """
-    Compute the self-interaction energy of the condensate.
+    Compute self-gravitational energy before multiplication by Vcell.
+
+    phisp contains both self-gravitational and central potentials.
+    Subtract half the central contribution to isolate
+    0.5 * sum(rho * phi_self).
     """
     # Compute the energy density associated with the self-interaction
-    dens_Eup = ne.evaluate("real(0.5 * (phisp * rho))")  # phisp contains both (the central and psi) contributions
+    dens_Eup = ne.evaluate("real(0.5 * phisp * rho)")  # phisp contains both (the central and psi) contributions
     dens_Eup = np.sum(dens_Eup, dtype=np.float64)
 
-    # Gravitational potential energy of the condensate
     dens_centE = centpotetE(rho, distarray, simulation_parameters)
 
-    return dens_Eup - dens_centE
+    return dens_Eup - 0.5 * dens_centE
+
 
 def selfinterFieldE(rho, simulation_parameters):
     """
@@ -167,49 +179,74 @@ def selfinterFieldE(rho, simulation_parameters):
     return np.sum(dens_lambd, dtype=np.float64)
 
 def kintE(psi, karray2, obj, kvec=None, method=1):
-    """
-    Compute the kinetic energy of the system.
-    """
-    if method==1:
-        fft_psi, ifft_funct = obj
+    """Compute kinetic energy summed over fields and grid, before Vcell."""
+    fft_psi, ifft_funct = obj
 
+    if method == 1:
         funct = fft_psi(psi)
         funct = ne.evaluate("karray2 * funct")
         funct = ifft_funct(funct)
 
         dens_Ekin_i = ne.evaluate("real(0.5 * conj(psi) * funct)")
         dens_Ekin = np.sum(dens_Ekin_i, axis=0)
-                    #ne.evaluate("sum(dens_Ekin_i, axis=0)")
-    else:
-        fft_psi, ifft_funct = obj
+    elif method == 2:
+        if kvec is None:
+            raise ValueError("method=2 requires kvec.")
 
-        # Compute funct and functconj, store copies to avoid modification
+        # Preserve the spectrum when FFTW reuses its internal buffers.
         funct = np.copy(fft_psi(psi))
-        psiconj = np.conjugate(psi)
-        functconj = np.copy(fft_psi(psiconj))
+        dens_Ekin_i = np.zeros(psi.shape, dtype=np.float64)
 
-        # Initialize kinetic energy density array
-        dens_Ekin_i = np.zeros_like(psi, dtype='complex128')
         for i in range(3):
-            coef1 = np.copy(ifft_funct(kvec[i] * funct))  # Store copy before modifying
-            coef2 = np.copy(ifft_funct(kvec[i] * functconj))  # Store copy before modifying
-            dens_Ekin_i += coef1 * coef2  # Update the energy density
-        dens_Ekin = -0.5 * np.sum(np.real(dens_Ekin_i), axis=0)
-                   #-0.5 * ne.evaluate("sum(real(dens_Ekin_i), axis=0)")
+            coef = ifft_funct(kvec[i] * funct)
+            dens_Ekin_i += np.abs(coef)**2
+
+        dens_Ekin = 0.5 * np.sum(dens_Ekin_i, axis=0)
+    else:
+        raise ValueError("method must be 1 or 2.")
+
     return np.sum(dens_Ekin)
 
 ########################################
+
 def Pi(psi, kvec, Vcell, obj):
+    """
+    Compute the total linear momentum along each spatial axis.
+
+    Evaluates P_j = Vcell * sum(Re[conj(psi) * (-i ∂_j psi)]) over
+    all field components and grid points. Spatial derivatives use
+    Fourier transforms with periodic boundary conditions.
+
+    Parameters
+    ----------
+    psi : ndarray, shape (n_components, Nx, Ny, Nz)
+        Complex wavefunction for each field component.
+    kvec : sequence of three ndarrays
+        Angular wavenumber grids (kx, ky, kz), broadcastable to the
+        spatial grid. Preserve their axis-specific shapes, typically
+        (Nx, 1, 1), (1, Ny, 1), and (1, 1, Nz).
+    Vcell : float
+        Volume of one spatial grid cell.
+    obj : sequence of two callables
+        Forward and inverse FFT functions, acting on spatial axes
+        only. The inverse must include the usual normalization.
+
+    Returns
+    -------
+    list of float
+        Total momentum [Px, Py, Pz], summed over all components.
+    """
     fft_psi, ifft_funct = obj
-    funct = fft_psi(psi)
-    functconj = np.conjugate(funct)
-    dens_P_i = []
+    funct = np.copy(fft_psi(psi))
+    psiconj = np.conjugate(psi)
+
+    momentum = []
     for k in range(3):
         temp = ifft_funct(kvec[k] * funct)
-        temp = ne.evaluate("sum(functconj * temp, axis=0)")
-        dens_P_i.append(temp)
+        density = np.real(psiconj * temp)
+        momentum.append(Vcell * np.sum(density))
 
-    return [Vcell * np.sum(comp) for comp in dens_P_i]
+    return momentum
 
 ########################################
 def psiData(psi, max_pos):
