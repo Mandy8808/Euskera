@@ -125,6 +125,36 @@ def JoinFilesInOneZip(file_list, output_zip):
             # Remove original files
             os.remove(filename)
 
+def JoinFilesInOneHDF5(file_list, output_hdf5):
+    """
+    Uniendo todos los archivos HDF5 en un unico archivo HDF5.
+
+    Unlike .npz, HDF5 files are not zip archives, so they cannot be merged
+    with zipfile. Each dataset is copied into a single consolidated file.
+
+    IN:
+    output_hdf5 -> nombre del archivo HDF5 final
+    file_list -> lista o tupla de archivos .h5, o patron para localizarlos
+
+    Out:
+    Crea un archivo: output_hdf5 con todos los datasets de los archivos originales.
+    """
+
+    # identificando los archivos a combinar
+    if isinstance(file_list, (list, tuple)):
+        filenames = file_list
+    elif isinstance(file_list, str):
+        filenames = glob.glob(file_list)
+
+    with h5py.File(output_hdf5, mode='w') as archive:
+        for filename in filenames:
+            with h5py.File(filename, mode='r') as f:
+                for name in f.keys():
+                    f.copy(name, archive)
+
+            # Remove original files
+            os.remove(filename)
+
 class StoreSolution:
     """
     Class to save the results.
@@ -210,7 +240,10 @@ class StoreSolution:
 
             # Archive files
             archive_name = os.path.join(self.address, f"{zip_name}.{self.format}")
-            JoinFilesInOneZip(filenames, archive_name)
+            if self.format == "npz":
+                JoinFilesInOneZip(filenames, archive_name)
+            else:
+                JoinFilesInOneHDF5(filenames, archive_name)
 
 
 ################ Old versions

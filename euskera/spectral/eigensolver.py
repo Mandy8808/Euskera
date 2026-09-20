@@ -54,7 +54,7 @@ def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
 
    # Define the (M_J)_ij matrix
    num = 3  # Block number: Dim(OM_chev) = num*(Nptos-1) x num*(Nptos-1)
-   OM_chev = np.zeros((num*2*(Nptos-1), num*2*(Nptos-1)), dtype = 'complex_')
+   OM_chev = np.zeros((num*2*(Nptos-1), num*2*(Nptos-1)), dtype=complex)
 
    # Block matrices functions
    blockPola = {
