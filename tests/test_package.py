@@ -1,5 +1,7 @@
 import importlib
 
+import importlib.util
+
 import numpy as np
 import pytest
 
@@ -162,6 +164,15 @@ def test_typed_configurations_are_public_canonical_imports():
     assert euskera.EvolutionConfig is EvolutionConfig
     assert euskera.OutputConfig is OutputConfig
     assert euskera.DiagnosticsConfig is DiagnosticsConfig
+
+
+def test_observables_do_not_expose_redundant_facade_modules():
+    assert importlib.util.find_spec("euskera.observables.mass") is None
+    assert importlib.util.find_spec("euskera.observables.energy") is None
+
+
+def test_evolution_does_not_expose_redundant_split_step_module():
+    assert importlib.util.find_spec("euskera.evolution.split_step") is None
 
 
 def test_background_profile_is_deterministic_and_finite():

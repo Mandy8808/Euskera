@@ -1,5 +1,4 @@
-# euskera v1.0
-# time-evolution routines file
+"""TIME-EVOLUTION ROUTINES FOR SCHRÖDINGER-POISSON SYSTEM"""
 
 import time
 import numpy as np

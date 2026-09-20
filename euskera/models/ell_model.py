@@ -1,5 +1,4 @@
-# euskera v1.0
-# ell_boson_model file
+"""ELL-BOSON MODEL FOR EUSKERA SIMULATIONS"""
 
 import numpy as np
 import numexpr as ne

@@ -1,5 +1,4 @@
-# euskera v1.0
-# frequency file
+"""FREQUENCY ANALYSIS FOR EUSKERA SIMULATIONS"""
 
 import numpy as np
 

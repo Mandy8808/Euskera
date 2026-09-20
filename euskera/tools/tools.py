@@ -66,6 +66,10 @@ def update_simulation_parameters(simulation_parameters_update, simulation_parame
 
         if not isinstance(element_update, expected_type):
             raise ValueError(f"The parameter '{name}' must be of type {expected_type}.")
+        if name == "Ji" and element_update:
+            raise ValueError(
+                "Ji diagnostics are not implemented; set Ji=False."
+            )
 
         simulation_parameters[name] = element_update
 
@@ -136,7 +140,7 @@ def dtime(tmax, gridlength, resol, step_factor, save_number):
     else:
         # Ensure the total number of steps is a multiple of save_number
         rem = min_num_steps_adjusted % save_number
-        actual_num_steps = min_num_steps_adjusted + save_number - rem
+        actual_num_steps = min_num_steps_adjusted + (save_number - rem) % save_number
         its_per_save = actual_num_steps // save_number
 
     # Compute final timestep

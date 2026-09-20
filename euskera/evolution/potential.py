@@ -1,5 +1,4 @@
-# euskera v1.0
-# potential file
+"""POTENTIAL FUNCTIONS FOR SCHRÖDINGER-POISSON SYSTEM"""
 
 import numpy as np
 import numexpr as ne

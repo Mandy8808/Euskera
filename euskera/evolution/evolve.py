@@ -1,5 +1,4 @@
-# euskera v1.0
-# main file
+"""MAIN FILE FOR EVOLUTION ROUTINES"""
 
 import numexpr as ne
 import numpy as np

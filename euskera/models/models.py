@@ -1,5 +1,4 @@
-# euskera v1.0
-# models file
+"""MODELS REGISTRY AND HANDLER FOR EUSKERA SIMULATIONS"""
 
 from euskera.models import ell_model as ell_m
 from euskera.models import gaussiana_model as gm

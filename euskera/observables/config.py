@@ -18,6 +18,10 @@ class DiagnosticsConfig:
         for name in ("Numb_Part", "Energ", "Pi", "Ji", "Frequency"):
             if not isinstance(getattr(self, name), bool):
                 raise TypeError(f"{name} must be a boolean")
+        if self.Ji:
+            raise ValueError(
+                "Ji diagnostics are not implemented; set Ji=False."
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

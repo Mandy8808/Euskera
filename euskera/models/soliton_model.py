@@ -1,5 +1,4 @@
-# euskera v1.0
-# soliton_model file
+"""SOLITON MODEL FOR EUSKERA SIMULATIONS"""
 
 import numpy as np
 import numexpr as ne

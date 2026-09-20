@@ -1,5 +1,4 @@
-# euskera v1.0
-# gaussiana_model file
+"""GAUSSIANA MODEL FOR EUSKERA SIMULATIONS"""
 
 import numpy as np
 import numexpr as ne

@@ -1,5 +1,5 @@
-# euskera v1.0
-# conserved quantities file
+"""CONSERVATION QUANTITIES CALCULATION FOR EUSKERA SIMULATIONS"""
+
 import numpy as np
 import numexpr as ne
 
@@ -18,6 +18,9 @@ def Conserv(data, comp_conserv, simulation_parameters,
     """
     Compute conserved quantities in a numerical simulation.
     """
+    if comp_conserv.get("Ji", False):
+        raise ValueError("Ji diagnostics are not implemented; set Ji=False.")
+
     psi, rho, phisp, distarray, karray2, kvec = data
     kvec2 = [kvec[0].flatten(), kvec[1].flatten(), kvec[2].flatten()]
 
@@ -194,8 +197,8 @@ def kintE(psi, karray2, obj, kvec=None, method=1):
         dens_Ekin = -0.5 * np.sum(np.real(dens_Ekin_i), axis=0)
                    #-0.5 * ne.evaluate("sum(real(dens_Ekin_i), axis=0)")
     return np.sum(dens_Ekin)
-########################################
 
+########################################
 def Pi(psi, kvec, Vcell, obj):
     fft_psi, ifft_funct = obj
     funct = fft_psi(psi)
@@ -207,8 +210,8 @@ def Pi(psi, kvec, Vcell, obj):
         dens_P_i.append(temp)
 
     return [Vcell * np.sum(comp) for comp in dens_P_i]
-########################################
 
+########################################
 def psiData(psi, max_pos):
     data_comp = [comp[ind[0], ind[1], ind[2]] for ind, comp in zip(max_pos, psi)]
     return data_comp
