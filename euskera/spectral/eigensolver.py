@@ -1,4 +1,6 @@
-"""Spectral eigensolver implementation."""
+"""Spectral eigensolver implementation.
+Details in https://arxiv.org/pdf/2512.04376
+"""
 
 import numpy as np
 from scipy.linalg import eig
@@ -7,8 +9,7 @@ from .blocks import linBlock, circBlock, radBlock, multBlock
 from euskera.tools.tools import progressbar
 
 def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
-   r"""
-   Computes the spectrum of a system.
+   r"""Computes the spectrum of a system.
 
    Type of polarizations:
    i. $\gamma=0$, $\alpha=0$ if the polarization is linear,
@@ -68,7 +69,8 @@ def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
         "linear": zip([0, 1, 2], [0, 1, 2]),
         "circular": zip([0, 0, 1, 1, 2], [0, 1, 0, 1, 2]),
         "radial": zip([0, 0, 1, 1, 2], [0, 1, 0, 1, 2]),
-        "multifrequency": zip([0, 0, 0, 1, 1, 1, 2, 2, 2], [0, 1, 2, 0, 1, 2, 0, 1, 2])
+        "multifrequency": zip([0, 0, 0, 1, 1, 1, 2, 2, 2],
+                              [0, 1, 2, 0, 1, 2, 0, 1, 2])
    }
 
    # Validate polarization

@@ -67,7 +67,7 @@ def Organize_row(ind, R_row, data_T, Rtol, Atol):
 
 def sep(Auto_Valores, Auto_Funciones, Imag=False):
    """
-   Separando los autovalores y autovectores
+   Splits the eigenvalues and eigenvectors into real and imaginary parts
    """
    ndatos = len(Auto_Valores)
    dataR, dataI = [], []

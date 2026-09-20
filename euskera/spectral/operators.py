@@ -1,11 +1,12 @@
-"""Spectral operators implementation."""
+"""Spectral operators implementation.
+Details in https://arxiv.org/pdf/2512.04376
+"""
 
 import numpy as np
 from .chebyshev import chevQuant
 
 def backgroundOper(datFunc, util, lamV, alp, info=False):
-   """
-   Computes the background operators:
+   """Computes the background operators:
    Sigma0, Ueff, TrianJInv, Rmatriz, D2i_chev, r_dis_inner, lamStar
    """
 

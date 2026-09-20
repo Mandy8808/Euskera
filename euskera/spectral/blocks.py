@@ -1,4 +1,8 @@
-"""Spectral blocks implementation."""
+"""
+Spectral Polarizations blocks implementation.
+Details of the linear, circular, and radial block constructions appear in
+https://arxiv.org/pdf/2512.04376
+"""
 
 import numpy as np
 

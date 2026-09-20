@@ -1,11 +1,13 @@
-"""Spectral chebyshev implementation."""
+"""Spectral chebyshev implementation.
+Details in https://arxiv.org/pdf/2512.04376
+"""
 
 import numpy as np
 
 def cheb(op):
     '''Chebyshev polynomial differentiation matrix.
-       Ref.: Trefethen's 'Spectral Methods in MATLAB' book.
-       N - size of diff matrix - op+1 where op is polynomial order.
+    Ref.: Trefethen's 'Spectral Methods in MATLAB' book.
+    N - size of diff matrix - op+1 where op is polynomial order.
     '''
     N = op + 1
     if N == 1:
@@ -74,7 +76,7 @@ def chevQuant(util, info=False):
    _, Nptos, rMax = util
 
    # Compute the Chebyshev differentiation matrix
-   #D_chev, x_chev = cheb(Nptos - 1)  # Nptos = order + 1, so pass Nptos-1
+   # D_chev, x_chev = cheb(Nptos - 1)  # Nptos = order + 1, so pass Nptos-1
    D_chev, x_chev = cheb2(Nptos)  # Nptos = order + 1, so pass Nptos-1
 
    # Scaling from [-1, 1] to [0, rMax] using x_chev = 2(r/rMax) - 1
