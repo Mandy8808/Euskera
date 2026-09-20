@@ -2,20 +2,31 @@
 
 ## Package boundaries
 
-Euskera is distributed as two importable packages:
+Euskera is one scientific package with two primary workflows:
 
-| Package | Responsibility |
+| Namespace | Responsibility |
 | --- | --- |
-| `euskera` | Grid construction, initial models, time evolution, conserved quantities, plotting and data storage |
-| `background` | Radial background solutions, spectral methods, energy/mass calculations and background plotting |
+| `euskera.evolution` | Three-dimensional field evolution and potential solving |
+| `euskera.backgrounds` | Radial background solutions, shooting and profile construction |
 
-The top-level `euskera` module re-exports the most commonly used symbols.
-Imports from submodules are useful when a workflow needs a more focused
-dependency, for example `from euskera.main.grids import RealGrid`.
+Shared concerns have explicit namespaces:
+
+| Namespace | Responsibility |
+| --- | --- |
+| `euskera.core` | Grids and shared field primitives |
+| `euskera.models` | Initial field models |
+| `euskera.numerics` | Spectral and other numerical methods |
+| `euskera.observables` | Energy, mass and conserved quantities |
+| `euskera.io` | Simulation input/output |
+| `euskera.visualization` | Plots and videos |
+
+The legacy `background` package and `euskera.main` modules remain available
+as compatibility surfaces while notebooks and downstream users migrate.
 
 ## Evolution pipeline
 
-`euskera.evolve` coordinates the following stages:
+`euskera.evolve` (also available as `euskera.evolution.evolve`) coordinates
+the following stages:
 
 1. **Model selection.** The `Models` registry resolves one or more model names
    and validates their parameter dictionaries.

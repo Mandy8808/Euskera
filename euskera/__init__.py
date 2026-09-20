@@ -28,6 +28,10 @@ from .models.ell_model import ell_Model, build_ell, compute_sph_harm_grid, inite
 from .models.gaussiana_model import Gaussiana_Model, build_1d_gaussian, add_gaussian
 from .models.proca_model import proca_Model, build_proca, compute_polarization_vec, initproca_kernel
 
+# Workflow-oriented namespaces. The legacy modules remain available for
+# backwards compatibility while new code can use these stable boundaries.
+from . import backgrounds, core, evolution, io, numerics, observables, visualization
+
 # Define available imports
 __all__ = [
     # Core evolution routines
@@ -64,5 +68,9 @@ __all__ = [
     'Gaussiana_Model', 'build_1d_gaussian', 'add_gaussian',
     
     # proca
-    'proca_Model', 'build_proca', 'compute_polarization_vec', 'initproca_kernel'
+    'proca_Model', 'build_proca', 'compute_polarization_vec', 'initproca_kernel',
+
+    # Workflow namespaces
+    'backgrounds', 'core', 'evolution', 'io', 'numerics', 'observables',
+    'visualization',
 ]

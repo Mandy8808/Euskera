@@ -1,7 +1,15 @@
 # Public API guide
 
-The public API is re-exported from `euskera` and `background`. The package
-also exposes the same core evolution symbols from `euskera.main`.
+The public API is re-exported from `euskera`. The preferred imports are
+organized by workflow; the legacy `background` and `euskera.main` imports
+remain supported during migration.
+
+```python
+from euskera.evolution import evolve
+from euskera.backgrounds import system
+from euskera.core import RealGrid
+from euskera.observables import massVal
+```
 
 ## Running a simulation
 
@@ -89,9 +97,10 @@ These functions operate on NumPy arrays produced by the grid and model
 stages. Their exact array shapes are best illustrated by the notebooks in
 [`examples/`](../examples/).
 
-## Background package
+## Background workflow
 
-`background` provides the independent background-solution workflow. Its
+`euskera.backgrounds` provides the independent background-solution workflow.
+Its
 main entry points include:
 
 - `system`, `systemMultifrequency` and `systemMultFreqTot` for background
@@ -100,6 +109,13 @@ main entry points include:
 - `profilesFromSolut` for extracting profiles;
 - `cheb` and the spectral-operator helpers for Chebyshev discretisation;
 - `energEng` and `massVal` for energy and mass calculations.
+
+The compatibility import remains valid:
+
+```python
+import background
+background.system(...)
+```
 
 The background API is lower-level than `euskera.evolve`; use the relevant
 notebook or source docstring when selecting a solver.

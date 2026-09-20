@@ -9,7 +9,7 @@ For a quick introduction, start with the [repository README](../README.md).
 - [Architecture](architecture.md) explains how grids, models, potentials,
   evolution and output saving interact.
 - [API guide](api.md) lists the public entry points exported by `euskera` and
-  `background`.
+  its workflow namespaces.
 - [Workflows](workflows.md) contains practical configuration examples and
   guidance for notebooks, output and optional acceleration.
 
