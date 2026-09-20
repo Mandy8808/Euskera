@@ -1,10 +1,5 @@
-"""Single-frequency shooting and event-identification helpers."""
-import warnings
+"""SINGLE-FREQUENCY SHOOTING AND EVENT-IDENTIFICATION HELPERS"""
 import numpy as np
-from scipy.interpolate import interp1d
-from scipy.integrate import solve_ivp, quad
-from scipy.optimize import root_scalar
-from euskera.observables import energy_mass as em
 
 def shoot(imin: float, imax: float) -> float:
     """

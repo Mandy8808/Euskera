@@ -1,11 +1,9 @@
 """Canonical background systems API."""
 import warnings
 import numpy as np
-from scipy.interpolate import interp1d
-from scipy.integrate import solve_ivp, quad
-from scipy.optimize import root_scalar
-from euskera.observables import energy_mass as em
 
+
+# SYSTEM EQUATIONS FOR THE MULTIFREQUENCY CASE APPLIED IN THE SHOOTING METHODOLOGY
 def system(r, yV, arg):
     r"""
     System of equations (52) for one scalar field. Note that we used the Ansatz:
@@ -112,6 +110,8 @@ def systemMultifrequency(r, yV, arg):
 
     return valores
 
+
+# SYSTEM EQUATIONS FOR THE MULTIFREQUENCY CASE APPLIED IN THE FITTING METHODOLOGY
 def systemMultFreqTot(r, yVT, arg):
     """
     Particular implementation of the paper https://arxiv.org/pdf/2208.13221

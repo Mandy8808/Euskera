@@ -4,7 +4,6 @@
 import time
 import numpy as np
 import numexpr as ne
-import matplotlib.pyplot as plt
 
 # Check if pyFFTW is available
 try:

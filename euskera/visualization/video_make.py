@@ -3,7 +3,6 @@
 
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.collections import LineCollection
 from IPython.display import HTML

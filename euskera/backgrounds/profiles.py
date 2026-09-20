@@ -1,9 +1,6 @@
-"""Canonical background profiles API."""
-import warnings
+"""BACKGROUND PROFILES API"""
 import numpy as np
-from scipy.interpolate import interp1d
-from scipy.integrate import solve_ivp, quad
-from scipy.optimize import root_scalar
+from scipy.integrate import solve_ivp
 from euskera.observables import energy_mass as em
 from .systems import systemMultifrequency
 

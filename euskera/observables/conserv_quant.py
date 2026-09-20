@@ -1,7 +1,5 @@
 # euskera v1.0
 # conserved quantities file
-import sys
-import os
 import numpy as np
 import numexpr as ne
 

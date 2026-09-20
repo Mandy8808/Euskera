@@ -1,5 +1,4 @@
-"""Multifrequency background shooting workflows."""
-import warnings
+"""MULTIFREQUENCY BACKGROUND SHOOTING WORKFLOWS"""
 import numpy as np
 from scipy.integrate import solve_ivp
 from euskera.visualization import background_plots as cplot

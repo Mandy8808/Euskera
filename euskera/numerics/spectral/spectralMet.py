@@ -3,7 +3,6 @@
 
 # LOADING MODULES
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 
 from scipy.linalg import eig
