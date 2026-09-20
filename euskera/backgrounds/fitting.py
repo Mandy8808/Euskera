@@ -6,7 +6,7 @@ from scipy.integrate import solve_ivp, quad
 from scipy.optimize import root_scalar
 from euskera.observables import energy_mass as em
 from .systems import systemMultifrequency
-from .solvers import shoot, freq_shoot, identify, freq_shoot2, identify2
+from .shooting import shoot, freq_shoot, identify, freq_shoot2, identify2
 
 def fitting(syst, V0, indck, indXc, BCind, inddXc, limit, argf=None, info=False,
             tol=1e-14, met='RK45', Rtol=1e-07, Atol=1e-8, npt=100, klim=500):

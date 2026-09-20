@@ -10,8 +10,8 @@ import euskera.backgrounds as canonical
 def test_background_canonical_modules_export_public_symbols():
     for module_name in (
         "systems",
+        "shooting",
         "solvers",
-        "multifrequency",
         "asymptotics",
         "profiles",
         "fitting",
@@ -31,7 +31,7 @@ def test_background_import_graph_has_no_cycles():
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.level:
                 target = node.module or ""
-                if target in {"systems", "solvers", "multifrequency", "asymptotics", "profiles", "fitting"}:
+                if target in {"systems", "shooting", "solvers", "asymptotics", "profiles", "fitting"}:
                     deps.add(f"euskera.backgrounds.{target}")
         graph[module] = deps
 

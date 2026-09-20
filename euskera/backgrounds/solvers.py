@@ -1,190 +1,227 @@
-"""Single-frequency shooting and event-identification helpers."""
+"""Multifrequency background shooting workflows."""
 import warnings
 import numpy as np
-from scipy.interpolate import interp1d
-from scipy.integrate import solve_ivp, quad
-from scipy.optimize import root_scalar
-from euskera.observables import energy_mass as em
+from scipy.integrate import solve_ivp
+from euskera.visualization import background_plots as cplot
+from .systems import systemMultifrequency
+from .shooting import shoot, freq_shoot, identify, freq_shoot2, identify2
 
-def shoot(imin: float, imax: float) -> float:
+def MultFreq_solveG2_vO(Ini0, Uintrs, rmax, rmin=0, LambT=1, nodos=[0, 0, 0],
+                     met='RK45', Rtol=1e-09, Atol=1e-10, lim=1e-6, info=False,
+                     klim=500, outval=13, delta=0.4): #'DOP853''LSODA'
     """
-    Compute the midpoint between imin and imax.
+    In:
+    Uintx -> [Umin, Umax]
+    Uinty -> [Umin, Umax]
+    Uintz -> [Umin, Umax]
+    Ini0 -> [p0x, p1x, p0y, p1y, p0z, p1z, u1x, u1y, u1z]
+    rmax, rmin ->
+    LambT -> +1 Repulsive case, -1 Atractive case
+    nodos -> [nodos_p0x, nodos_p0y, nodos_p0z]
 
-    Parameters:
-    - imin (float): Lower bound.
-    - imax (float): Upper bound.
-
-    Returns:
-    - float: The midpoint between imin and imax.
+    Orden de las variables
+    [phix, phix', phiy, phiy', phiz, phiz', ux, ux', uy, uy', uz, uz'] -> [p0x, p1x, p0y, p1y, p0z, p1z, u0x, u1x, u0y, u1y, u0z, u1z]
     """
-    if imin > imax:
-        raise ValueError("imin should be less than or equal to imax")
 
-    return (imin + imax)/2
+    nodos = np.array(nodos)
+    p0x, p1x, p0y, p1y, p0z, p1z, u1x, u1y, u1z = Ini0
 
-def freq_shoot(events, nodo, u0, iInterv, rTemp, inv=False):
-    """
-    Adjusts U bounds based on event crossings.
+    p0Data = [p0x, p0y, p0z]
+    Uintx, Uinty, Uintz = Uintrs
+    Uminx, Umaxx = Uintx
+    Uminy, Umaxy = Uinty
+    Uminz, Umaxz = Uintz
 
-    Parameters:
-    - events: list of arrays, where events[0] and events[1] represent different event crossings.
-    - nodo: int, number of expected crossings.
-    - u0: float, current u guess.
-    - iInterv: tuple (imin, imax), the interval of frequency adjustment.
-    - rTemp: float, last recorded event.
-    - inv: bool, flag to determine inversion logic.
+    print('Finding a profile with nx, ny, nz', nodos, 'nodes')
 
-    Returns:
-    updated the u interval and last event crossing.
-    -> [umin, umax], rTemp
-    """
-    imin, imax = iInterv
-    events0, events1 = events  # Unpacking for clarity
-    i0 = u0  # Extract first value if it's in a list/array
+    # Events
+    def Sigx(r, U, arg): return U[0]
+    def dSigx(r, U, arg): return U[1]
+    def Sigy(r, U, arg): return U[2]
+    def dSigy(r, U, arg): return U[3]
+    def Sigz(r, U, arg): return U[4]
+    def dSigz(r, U, arg): return U[5]
+    Sigx.direction = 0; dSigx.direction = 0
+    Sigy.direction = 0; dSigy.direction = 0
+    Sigz.direction = 0; dSigz.direction = 0
 
-    if events0.size == nodo and events1.size == nodo + 1:
-        return [imin, imax], rTemp
-    else:
-        # Determine whether to increase or decrease the frequency bounds
-        target_event = events0 if events0.size > nodo else events1
+    # ordenando de mayor a menor para la iteracion
+    k = 0
 
-    if inv:
-        imin, imax = (i0, imax) if target_event is events0 else (imin, i0)
-    else:
-        imin, imax = (imin, i0) if target_event is events0 else (i0, imax)
+    arg = [LambT]
+    Uintrs = np.array([[Uminx, Umaxx], [Uminy, Umaxy], [Uminz, Umaxz]])
+    sigModifold = None
+    UintrOrig = np.copy(Uintrs)
+    out = 0
+    while True:
+        u0 = np.array([shoot(*i) for i in Uintrs])
+        V0 = [p0x, p1x, p0y, p1y, p0z, p1z, u0[0], u1x, u0[1], u1y, u0[2], u1z]
 
-    rTemp = target_event[-1]  # Last crossing event update
+        sol = solve_ivp(systemMultifrequency, [rmin, rmax], V0, events=(Sigx, dSigx, Sigy, dSigy, Sigz, dSigz),
+                         args=(arg,), method=met,  rtol=Rtol, atol=Atol)
 
-    return [imin, imax], rTemp
+        eventos = np.array([[sol.t_events[0], sol.t_events[1]],
+                   [sol.t_events[2], sol.t_events[3]],
+                   [sol.t_events[4], sol.t_events[5]]], dtype=object)
+        sigModif = identify2(sol.t_events, nodos, p0Data, info=info)
 
-def identify(events, nodos, p0Data):
-    """
-    Identifies which profile's U bound should be modified based on event crossings.
+        if info:
+            print(sigModif)
 
-    Parameters:
-    - events: list of NumPy arrays, where each index corresponds to a detected event.
-    - nodos: list of expected number of crossings for each component.
-    - p0Data: list of bools indicating which components are considered in the analysis.
+        iInterv, rTemp = freq_shoot2(eventos[sigModif], nodos[sigModif], u0[sigModif], Uintrs[sigModif], rmax)
 
-    Returns:
-    - sigModif: list of bools indicating which signals should be modified.
-    """
-    numFields = len(nodos)
-    name = [str(i) for i in range(0, 2 * numFields, 2)]
-    dicNod = dict(zip(name, nodos))
+        if abs((iInterv[1]-iInterv[0])/2) <= lim:
+            if info:
+                print(out)
+                print('Maxima precisión alcanzada: U0x = ', V0[6], ' U0y = ', V0[8], ' U0z = ', V0[10], 'radio', rTemp)
 
-    # Identify components that are not zeros
-    indices = np.array(list(map(int, dicNod.keys())), dtype=int)
-    ind = np.array(p0Data, dtype=bool)  # Ensuring a boolean mask
-    posit = indices[ind]
-
-    valR = [np.inf] * numFields  # Initialize with infinity
-    for i in posit:
-        valtemp = []
-        nodo = dicNod[str(i)]
-
-        numNod = len(events[i])  # Size of current event
-        numdSig = len(events[i+1]) if i+1 < len(events) else 0
-
-        if (numNod == nodo) and (numdSig == nodo + 1):
-            valtemp.append(0)
-        elif numNod == nodo:
-            if numdSig < nodo + 1:
-                valtemp.append(events[i+1][nodo-1] if numdSig > 0 else np.inf)
-            elif numdSig > nodo + 1:
-                valtemp.append(events[i+1][nodo])
-        elif numNod > nodo:
-            valtemp.append(events[i][nodo])
-        else:
-            valtemp.append(events[i][-1] if numNod != 0 else 0)
-
-        # Dynamically assign to valR based on index position
-        valR[i // 2] = min(valtemp)
-
-    # Determine the signal to modify
-    sigModif = [False] * numFields
-    test = np.min(valR)
-    for i in range(numFields):
-        if valR[i] == test:
-            sigModif[i] = True
-            break
-
-    return sigModif
-
-def freq_shoot2(events, nodo, i0, iInterv, rTemp):
-    """
-    """
-    imin, imax = iInterv[0]
-    events = events[0]
-    i0 = i0[0]
-
-    if events[0].size == nodo and events[1].size == nodo+1:
-        return [imin, imax], rTemp
-    elif events[1].size > nodo+1:
-        if events[0].size > nodo:  # dos veces por nodo
-            imax = i0
-            rTemp = events[0][-1]
-        else:  # si pasa por cero más veces que 2*nodos se aumenta la w, sino se disminuye
-            imin = i0
-            rTemp = events[1][-1]
-    elif events[1].size <= nodo+1:
-        if events[0].size > nodo:  # dos veces por nodo
-            imax = i0
-            rTemp = events[0][-1]
-        else:
-            imin = i0
-            rTemp = events[1][-1]
-    return [imin, imax], rTemp
-
-def identify2(events, nodos, p0Data, info=False):
-    """
-    """
-    dicNod = {'0': nodos[0], '2': nodos[1], '4': nodos[2]}
-
-    # identificando que componentes no son ceros
-    # cuando una componente se tomó como cero y se excluye del análisis
-    indices = np.fromiter(map(int, dicNod.keys()), dtype=int)
-    ind = list(map(bool, p0Data))
-    posit = indices[ind]
-
-    valR = [np.infty, np.infty, np.infty]
-    for i in posit:
-        #if info:
-        #    print(events[i], events[i+1])
-
-        valtemp = []
-        nodo = dicNod[str(i)]
-        numNod = events[i].size; numdSig = events[i+1].size
-        if numNod == nodo and numdSig == nodo+1:
-            valtemp.append(0)
-        elif numNod == nodo:
-            if numdSig < nodo+1:
-                valtemp.append(events[i+1][nodo-1])
-            elif numdSig > nodo+1:
-                valtemp.append(events[i+1][nodo])
-        elif numNod > nodo:
-            valtemp.append(events[i][nodo])
-        else:
-            if numNod != 0:
-                valtemp.append(events[i][-1])
+            if out==outval:
+                print('Maxima precisión alcanzada: U0x = ', V0[6], ' U0y = ', V0[8], ' U0z = ', V0[10], 'radio', rTemp)
+                u0 = [V0[6], V0[8], V0[10]]
+                return u0, rTemp, sol.t_events[::2]
             else:
-                valtemp.append(0)
+                #Uintrs = np.copy(UintrOrig) # reinicio los que  ya no son iguales
+                Uintrs[sigModif] = [iInterv[0]-delta, iInterv[1]+delta]
+                out += 1
+        else:
+            Uintrs[sigModif] = iInterv
 
-        if i==0:
-            valR[0] = min(valtemp)
-        elif i==2:
-            valR[1] = min(valtemp)
-        elif i==4:
-            valR[2] = min(valtemp)
+        if info:
+            print(Uintrs)
 
-    # print(valR)
-    sigModif = [False, False, False]
-    test = np.min(valR)
-    for i in range(3):
-        if valR[i]==test:
-            sigModif[i]=True
+        if np.all(np.array([shoot(*i) for i in Uintrs])==u0):
+            print('Found: U0x = ', V0[6], ' U0y = ', V0[8], ' U0z = ', V0[10], 'radio', rTemp)
+            u0 = [V0[6], V0[8], V0[10]]
+            return u0, rTemp, sol.t_events[::2]
+
+        if k==klim:
+            print('loop limit reached')
             break
 
-    return sigModif
+        k += 1
 
-__all__ = ['shoot', 'freq_shoot', 'identify', 'freq_shoot2', 'identify2']
+def MultFreq_solveG2(Ini0, numFields, Uintrs, rmax, rmin=0, LambT=0, gamma=0, nodos=None,
+                     met='RK45', Rtol=1e-09, Atol=1e-10, lim=1e-14, info=False,
+                     klim=500, outval=13, delta=0.4, part=None, inv=False):
+    """
+    Multi-frequency solver using solve_ivp.
+    """
+
+    # Ensuring gamma is zero for multifrequency case
+    if numFields != 1 and gamma != 0:
+        raise ValueError("gamma must be exactly zero for the multifrequency case.")
+
+    # Validating initial conditions
+    if len(Ini0) != 3 * numFields:
+        raise ValueError(f"Ini0 must have exactly {3 * numFields} elements.")
+
+    if len(Uintrs) != numFields:
+        raise ValueError(f"Uintrs must have exactly {numFields} intervals.")
+
+    if sum([len(Uintrs[i]) == 2 for i in range(numFields)]) != numFields:
+        raise ValueError("Each Uintrs component must have exactly 2 extremal values.")
+
+
+    Uintrs = np.array(Uintrs, dtype=object)  # Ensure it's modifiable
+    arg = [numFields, LambT, gamma]
+
+    # Setting node values
+    if nodos is None:
+        nodos = np.zeros(numFields, dtype=np.int8)
+    else:
+        if len(nodos) != numFields:
+            raise ValueError(f"The node number must have exactly {numFields} elements.")
+        nodos = np.array(nodos, dtype=np.int8)
+
+    print('Finding a profile with nodes:', nodos)
+
+    # Define event functions based on numFields
+    def Sigx(r, U, arg): return U[0]
+    def dSigx(r, U, arg): return U[1]
+
+    Sigx.terminal = False
+    dSigx.terminal = False
+
+    FindEvents = [Sigx, dSigx]
+
+    if numFields == 2:
+        def Sigy(r, U, arg): return U[2]
+        def dSigy(r, U, arg): return U[3]
+
+        Sigy.terminal = False
+        dSigy.terminal = False
+        FindEvents.extend([Sigy, dSigy])
+
+    if numFields == 3:
+        def Sigz(r, U, arg): return U[4]
+        def dSigz(r, U, arg): return U[5]
+
+        Sigz.terminal = False
+        dSigz.terminal = False
+        FindEvents.extend([Sigz, dSigz])
+
+    # Initial conditions setup
+    V0 = np.zeros(4 * numFields)
+    V0[:2 * numFields] = Ini0[:2 * numFields]
+    V0[2 * numFields + 1::2] = Ini0[2 * numFields:]
+
+    # Track the central amplitude values
+    p0Data = [Ini0[i] for i in range(0, 2 * numFields, 2)]
+
+    k = 0
+    out = 0
+    while k < klim:
+        u0 = np.array([shoot(*i) for i in Uintrs])
+        V0[2 * numFields::2] = u0  # Updating boundary conditions
+
+        # Solving ODE
+        sol = solve_ivp(systemMultifrequency, [rmin, rmax], V0, events=FindEvents,
+                        args=(arg,), method=met, rtol=Rtol, atol=Atol)
+
+        if info:
+            cplot.plotUsingSol(sol)
+
+        # Extracting event times
+        eventos = np.array([sol.t_events[i:i+2] for i in range(0, 2*numFields, 2)], dtype=object)
+
+        if part:
+            even, shot = part
+            iInterv, rTemp = freq_shoot(eventos[even], nodos[even], u0[shot], Uintrs[shot], rmax)
+            sigModif = shot
+        else:
+            sigModif_bool = identify(sol.t_events, nodos, p0Data)
+            sigModif = np.argmax(sigModif_bool)  # Convert boolean list to index
+
+            iInterv, rTemp = freq_shoot(eventos[sigModif], nodos[sigModif], u0[sigModif], Uintrs[sigModif], rmax, inv=inv)
+
+        if info:
+            print("Modifying:", sigModif)
+
+
+        if abs((iInterv[1] - iInterv[0]) / 2) <= lim:
+            if info:
+                print(out, '->>', iInterv[1], iInterv[0])
+                print('Precision reached: U0 =', u0, 'radius', rTemp)
+
+            if out == outval:
+                print('Final precision: U0 =', u0, 'radius', rTemp)
+                return u0, rTemp, sol.t_events[::2]
+            else:
+                Uintrs[sigModif] = [iInterv[0] - delta, iInterv[1] + delta]
+                out += 1
+        else:
+            Uintrs[sigModif] = iInterv
+
+        if info:
+            print("Updated Uintrs:", Uintrs)
+
+        if np.all(np.array([shoot(*i) for i in Uintrs]) == u0):
+            print('Solution found: U0 =', u0, 'radius', rTemp)
+            return u0, rTemp, sol.t_events[::2]
+
+        k += 1
+
+    print('Loop limit reached')
+    return None
+
+__all__ = ['MultFreq_solveG2_vO', 'MultFreq_solveG2']

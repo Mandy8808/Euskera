@@ -5,7 +5,7 @@ import numpy as np
 import euskera
 from euskera.backgrounds import profilesFromSolut, system, systemMultifrequency
 from euskera.backgrounds.systems import system as systems_system
-from euskera.backgrounds.solvers import freq_shoot, shoot
+from euskera.backgrounds.shooting import freq_shoot, shoot
 from euskera.evolution.config import EvolutionConfig
 from euskera.io.config import OutputConfig
 from euskera.models.models import Models

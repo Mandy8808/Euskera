@@ -2,8 +2,8 @@
 from .systems import *
 from .profiles import *
 from .asymptotics import *
+from .shooting import *
 from .solvers import *
-from .multifrequency import *
 from .fitting import *
 
 __all__ = [
