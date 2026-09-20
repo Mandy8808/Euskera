@@ -26,6 +26,7 @@ resources. Use the links below to navigate directly to the part you need.
 - [Installation](#installation)
 - [First steps](#first-steps)
 - [Examples and scientific resources](#examples-and-scientific-resources)
+- [Technical documentation](#technical-documentation)
 - [Development and validation](#development-and-validation)
 - [Citation and contact](#citation-and-contact)
 
@@ -154,6 +155,17 @@ data and videos so that results can be inspected without running a complete
 simulation. The scientific description is available in
 [`references/main.tex`](references/main.tex), with bibliography data in
 [`references/bibliografía.bib`](references/bibliografía.bib).
+
+## Technical documentation
+
+The [`docs/`](docs/) directory contains the technical documentation:
+
+- [Documentation index](docs/index.md): orientation and links to all guides;
+- [Architecture](docs/architecture.md): package boundaries and the simulation
+  data flow;
+- [API guide](docs/api.md): public entry points, models and numerical helpers;
+- [Workflows](docs/workflows.md): practical recipes for configuring,
+  executing and inspecting simulations.
 
 ## Development and validation
 
