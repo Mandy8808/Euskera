@@ -142,7 +142,7 @@ def identify2(events, nodos, p0Data, info=False):
     ind = list(map(bool, p0Data))
     posit = indices[ind]
 
-    valR = [np.infty, np.infty, np.infty]
+    valR = [np.inf, np.inf, np.inf]
     for i in posit:
         #if info:
         #    print(events[i], events[i+1])

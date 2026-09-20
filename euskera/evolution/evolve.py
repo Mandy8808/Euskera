@@ -138,7 +138,7 @@ def evolve(model_parameters,
     data_save = salva_data.get("data_save")
     address = salva_data.get("address")
     formt = salva_data.get("format")
-    data_save_obj = sv.data_Objgenerator(data_save=data_save, address=address, format=formt)
+    data_save_obj = sv.data_Objgenerator(data_save=data_save, address=address, format=formt, comp_conserv=comp_conserv)
 
     ######################### Initialize wavefunction and density
     (xarray, yarray, zarray, distarray), (psi, rho_i) = model_used.call_model(field_components=field_components,

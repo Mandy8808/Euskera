@@ -8,7 +8,7 @@ import numpy as np
 
 ########### Save data
 #############################################################################
-def data_Objgenerator(data_save, address, format):
+def data_Objgenerator(data_save, address, format, comp_conserv=None):
     """
     Generates a dictionary of StoreSolution objects for enabled data saving options.
 
@@ -16,12 +16,16 @@ def data_Objgenerator(data_save, address, format):
     - data_save (dict): Dictionary of boolean flags indicating which data to save.
     - address (str): Directory where data will be stored.
     - format (str): File format (e.g., "npz", "hdf5").
+    - comp_conserv (dict, optional): Diagnostic flags in Conserv output order.
 
     Returns:
     - dict: Dictionary with keys as data types and values as StoreSolution objects.
     """
     data_save_obj = {
-                    name: StoreSolution(address=address, filename=name, format=format)
+                    name: StoreSolution(address=address, filename=name, format=format,
+                        diagnostic_names=None if comp_conserv is None else [
+                            key for key, enabled in comp_conserv.items()
+                            if enabled and key in ("Numb_Part", "Energ", "Pi", "Frequency")])
                           for name, save in data_save.items() if save}
     return data_save_obj
 
@@ -160,7 +164,7 @@ class StoreSolution:
     Class to save the results.
     """
 
-    def __init__(self, address, filename, format="npz", info=False):
+    def __init__(self, address, filename, format="npz", info=False, diagnostic_names=None):
         """
         Initialize the storage class.
 
@@ -169,6 +173,8 @@ class StoreSolution:
         - filename (str): Base filename for saved data.
         - file_format (str): Format to save files ("npz" or "hdf5").
         - info (bool): Print information about file saving.
+        - diagnostic_names: Enabled Conserv names in output order. Required
+          for HDF5 save_energies; ignored for NPZ and numeric field datasets.
         """
         if info:
             print(f"Using address: {address}, Filename: {filename}, Format: {format}")
@@ -178,6 +184,7 @@ class StoreSolution:
         self.name = filename
         self.format = format.lower()  # Normalize format to lowercase
         self.time = []
+        self.diagnostic_names = diagnostic_names
 
         # Ensure directory exists
         os.makedirs(self.address, exist_ok=True)
@@ -212,9 +219,20 @@ class StoreSolution:
                 fname = os.path.join(self.address, f"{self.name}_u_{ti}.dat.npz")
                 np.savez(fname, **kwargs)
             elif self.format == "hdf5":
+                diagnostics = None
+                if self.name == "save_energies":
+                    diagnostics = _diagnostic_datasets(data, self.diagnostic_names)
                 fname = os.path.join(self.address, f"{self.name}_u_{ti}.h5")
                 with h5py.File(fname, "w") as f:
-                    f.create_dataset(f"{self.name}_{ti}", data=data)
+                    if diagnostics is None:
+                        f.create_dataset(f"{self.name}_{ti}", data=data)
+                    else:
+                        group = f.create_group(f"{self.name}_{ti}")
+                        group.attrs["schema_version"] = 1
+                        group.attrs["diagnostic_names"] = np.asarray(
+                            self.diagnostic_names, dtype=h5py.string_dtype())
+                        for key, value in diagnostics.items():
+                            group.create_dataset(key, data=value)
 
             # Store time step
             self.time.append(ti)
@@ -244,6 +262,46 @@ class StoreSolution:
                 JoinFilesInOneZip(filenames, archive_name)
             else:
                 JoinFilesInOneHDF5(filenames, archive_name)
+
+
+def _diagnostic_datasets(data, names):
+    """Convert Conserv's ordered object array into named numeric datasets."""
+    if names is None or len(names) != len(data):
+        raise ValueError("HDF5 diagnostics require diagnostic_names matching the Conserv output order.")
+    result = {}
+    for name, value in zip(names, data):
+        if name == "Numb_Part":
+            result["mass_total"] = np.asarray(value[0], dtype=float)
+            result["mass_components"] = np.asarray(value[1], dtype=float)
+        elif name == "Energ":
+            result["energy"] = np.asarray(value, dtype=float)
+        elif name == "Pi":
+            result["momentum"] = np.asarray(value, dtype=float)
+        elif name == "Frequency":
+            result["frequency_samples"] = np.asarray(value, dtype=complex)
+        else:
+            raise ValueError(f"Unsupported diagnostic: {name}")
+    return result
+
+
+def read_hdf5_diagnostics(path):
+    """Return {snapshot_index: {quantity: numeric value/array}} for schema 1.
+
+    Indices are save counters, not physical times. frequency_samples contains
+    complex wavefunction samples, not estimated frequencies. Disabled
+    quantities are absent; a snapshot with all diagnostics disabled is empty.
+    """
+    snapshots = {}
+    with h5py.File(path, "r") as archive:
+        names = sorted((name for name in archive if name.startswith("save_energies_")),
+                       key=lambda name: int(name.rsplit("_", 1)[1]))
+        for name in names:
+            group = archive[name]
+            if not isinstance(group, h5py.Group) or group.attrs.get("schema_version") != 1:
+                raise ValueError(f"Unsupported diagnostics schema in {name}")
+            snapshots[int(name.rsplit("_", 1)[1])] = {
+                key: dataset[()] for key, dataset in group.items()}
+    return snapshots
 
 
 ################ Old versions

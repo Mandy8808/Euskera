@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Read Gaussian parameters by name and reject incomplete configurations.
+- Store HDF5 diagnostics as named numeric datasets, preserving complex samples
+  and enabled-quantity metadata; added `read_hdf5_diagnostics` and round-trip tests.
+
 - Preserved sparse Fourier-grid axes in conserved quantities so kinetic energy
   method 2 differentiates along x, y and z correctly. Added analytic plane-wave
   checks for both kinetic methods and multiple field components.

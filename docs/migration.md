@@ -35,3 +35,14 @@ right-hand side contains zeros. Configurations with inactive fields must pass
 their mask explicitly to avoid a singular full system. The augmented ODE state
 and downstream profile format are unchanged. See the
 [fitting workflow](workflows/background-fitting.md) for the notebook pipeline.
+
+## Gaussian inputs and HDF5 diagnostics
+
+Gaussian dictionary keys may appear in any order. Every Gaussian must explicitly
+supply position, amplitude and widths; incomplete entries now raise `ValueError`.
+
+HDF5 diagnostics now use named numeric datasets inside versioned snapshot groups.
+Use `read_hdf5_diagnostics` instead of treating `save_energies_<index>` as a single
+array. Direct HDF5 diagnostic writers must supply `diagnostic_names`; the
+simulation pipeline does this automatically. NPZ diagnostics are unchanged.
+See [simulation output](simulations.md#hdf5-diagnostics).

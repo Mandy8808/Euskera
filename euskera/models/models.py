@@ -55,6 +55,12 @@ class Models():
         # Checking type and updating parameters
         self.parameters_mod = {} 
         for name in self.name:
+            if name == "gaussian_function" and isinstance(kwargs[name], (list, tuple)):
+                for configuration in kwargs[name]:
+                    if isinstance(configuration, dict):
+                        missing = {"positions_gaussiana", "amplitude", "sigma"} - configuration.keys()
+                        if missing:
+                            raise ValueError(f"Gaussian configuration is missing: {sorted(missing)}")
             self.parameters_mod[name] = update_parameters(kwargs[name],  # parameters_update
                                                           models_type[name])  # model_type
         # Instance attributes

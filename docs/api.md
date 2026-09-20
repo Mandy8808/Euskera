@@ -156,3 +156,12 @@ plots are provided by `euskera.visualization.spectral_plot`.
 `plotUsingSol` and `plotPerf`. They consume discrete profile arrays or
 `solve_ivp` results and return the created figure and axes (or axes for plotUsingPerf). Plot settings are
 centralized in `euskera.visualization.configuration`.
+
+### Reading HDF5 diagnostics
+
+`euskera.io.read_hdf5_diagnostics(path)` reads schema-1 diagnostic groups and
+returns `{snapshot_index: {quantity_name: value}}`, sorted by numeric index.
+`StoreSolution(..., diagnostic_names=...)` and
+`data_Objgenerator(..., comp_conserv=...)` support named diagnostic writing.
+`evolve` supplies the metadata automatically. See
+[HDF5 diagnostics](simulations.md#hdf5-diagnostics) for the layout and examples.

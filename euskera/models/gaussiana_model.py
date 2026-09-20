@@ -69,7 +69,13 @@ class Gaussiana_Model():
         
         # Apply Gaussians
         # Puting the Gaussinan profiles on Psi
-        dat_conf_Parameters = zip(*(self.parameters_gaussiana[i] for i in self.parameters_gaussiana.keys()))
+        names = ("positions_gaussiana", "amplitude", "sigma")
+        if any(name not in self.parameters_gaussiana for name in names):
+            raise ValueError("Gaussian parameters require positions_gaussiana, amplitude and sigma.")
+        values = [self.parameters_gaussiana[name] for name in names]
+        if len({len(value) for value in values}) != 1:
+            raise ValueError("Gaussian parameter lists must have equal lengths.")
+        dat_conf_Parameters = zip(*values)
         
         for posGauss, amp, sig in dat_conf_Parameters:
             amp = 1.0 if amp is None else amp
