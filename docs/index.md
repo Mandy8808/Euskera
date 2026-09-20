@@ -14,6 +14,7 @@ shortest possible example. This index groups the longer guides by task.
 
 ## Understanding the package
 
+- [Package map](package-map.md): navigable modules and public symbols.
 - [Backgrounds](backgrounds.md): Schrödinger–Poisson/Gross–Pitaevskii–Poisson
   context, models and scientific references.
 - [Architecture](architecture.md): package boundaries and simulation data

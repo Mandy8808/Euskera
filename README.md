@@ -47,8 +47,9 @@ configuration. See the [quickstart](docs/quickstart.md) and
 
 The [documentation index](docs/index.md) links to installation, API,
 architecture, workflows, simulations, visualisation, development and
-scientific background. Existing runnable examples remain in
-[`examples/`](examples/).
+scientific background. See the [package map](docs/package-map.md) for a
+navigable overview of public modules and symbols. Existing runnable examples
+remain in [`examples/`](examples/).
 
 ## Project
 

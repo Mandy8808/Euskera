@@ -13,4 +13,5 @@ Initial-model parameters remain model-specific dictionaries, as shown in the
 The [architecture](architecture.md), [workflows](workflows.md) and
 [scientific background](backgrounds.md) pages provide context; the
 [development guide](development.md) explains how to validate documentation
-and code changes.
+and code changes. The [package map](package-map.md) provides a navigable
+overview of the current public modules and symbols.
