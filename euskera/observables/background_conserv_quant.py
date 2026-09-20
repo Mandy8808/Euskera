@@ -1,15 +1,13 @@
-# Proyecto proca v.1.0
-# Mass and Energy
-# The referred equations can be found at https://arxiv.org/pdf/2412.06901.
+"""ENERGY AND MASS CALCULATIONS FOR RADIAL DENSITY PROFILES
+The referred equations can be found at https://arxiv.org/pdf/2412.06901.
+"""
 
 import numpy as np
 
 from scipy.integrate import quad, simpson
 from scipy.interpolate import interp1d
 
-#######################
 ## ENERGY'S EINGEVALUE
-#######################
 def energEng(r, sigtot, V0, gamma=0, kind='quadratic', fill_value="extrapolate"):
     """
     Calculates the energy eigenvalue (En) corresponding to the radial density profiles sigtot
@@ -56,9 +54,7 @@ def energEng(r, sigtot, V0, gamma=0, kind='quadratic', fill_value="extrapolate")
     En = V0 - integral_result  # energía: (2c^2 m)/Lambda  -> Lambda=4pi m^3/Mp^2
     return En
 
-#######################
 ## MASS VALUE
-#######################
 def massVal(r, sigtot, gamma=0, fac=4*np.pi,
             kind='quadratic', fill_value="extrapolate",
             integrationMetho='quad'):
@@ -114,7 +110,6 @@ def massVal(r, sigtot, gamma=0, fac=4*np.pi,
 ########################################################
 # IMPLEMENTATION OF THE ENERGY FUNCTIONAL
 # Eqs. (11, 12, 25) # Equations (12a, 12b, 12c)
-########################################################
 def Tf(datos, gamma, rlim=None):
     # scaled variables
     r, sigma, _ = datos
@@ -135,6 +130,7 @@ def Tf(datos, gamma, rlim=None):
     Tval = Tval/2
     return Tval
 
+
 def Ff(datos, gamma, rlim=None):  # Fs and Fn
     # scaled variables
     r, sigma, _ = datos
@@ -153,6 +149,7 @@ def Ff(datos, gamma, rlim=None):  # Fs and Fn
     Fval = 4 * np.pi * quad(intf, rmin, rfin)[0]
     Fval = Fval/4.
     return Fval
+
 
 def EnFuncion(datos, arg, rlim=None):
     LambT, gamma = arg

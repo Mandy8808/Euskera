@@ -1,7 +1,7 @@
 """BACKGROUND PROFILES API"""
 import numpy as np
 from scipy.integrate import solve_ivp
-from euskera.observables import energy_mass as em
+from euskera.observables import background_conserv_quant as em
 from .systems import systemMultifrequency
 
 def profilesFromSolut(datos, mult=False, rmin=0, fac=4*np.pi, Nptos=2000, info=False,

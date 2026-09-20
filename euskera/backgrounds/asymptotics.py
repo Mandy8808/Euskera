@@ -1,7 +1,7 @@
 """ASYMPTOTIC EXTENSION OF PROFILES"""
 import warnings
 import numpy as np
-from euskera.observables import energy_mass as em
+from euskera.observables import background_conserv_quant as em
 from euskera.visualization import background_plots as cplot
 from .profiles import profilesFromSolut
 

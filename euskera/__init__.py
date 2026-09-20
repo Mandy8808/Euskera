@@ -7,7 +7,7 @@ from .evolution.evolve import evolve
 from .evolution.evolut_routines import PKP
 from .core.grids import RealGrid, KGrid, meshgrid
 from .evolution.potential import Upotential
-from .observables.conserv_quant import Conserv, Npar, Energ, centpotetE, selfinterCondensateE, selfinterFieldE, kintE, Pi
+from .observables.simulation_conserv_quant import Conserv, Npar, Energ, centpotetE, selfinterCondensateE, selfinterFieldE, kintE, Pi
 from .observables.frequency import main_frequency, frequMet1, frequMet2
 
 # Video visualization (optional import)
@@ -33,7 +33,7 @@ from .models.gaussiana_model import Gaussiana_Model, build_1d_gaussian, add_gaus
 from .models.proca_model import proca_Model, build_proca, compute_polarization_vec, initproca_kernel
 
 # Workflow-oriented canonical namespaces.
-from . import backgrounds, core, evolution, io, numerics, observables, spectral, visualization
+from . import backgrounds, core, evolution, io, observables, spectral, visualization
 from .evolution.config import EvolutionConfig
 from .io.config import OutputConfig
 from .observables.config import DiagnosticsConfig
@@ -79,7 +79,7 @@ __all__ = [
     'proca_Model', 'build_proca', 'compute_polarization_vec', 'initproca_kernel',
 
     # Workflow namespaces
-    'backgrounds', 'core', 'evolution', 'io', 'numerics', 'observables',
+    'backgrounds', 'core', 'evolution', 'io', 'observables',
     'visualization',
     'EvolutionConfig', 'OutputConfig', 'DiagnosticsConfig',
 ]

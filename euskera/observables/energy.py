@@ -1,6 +1,6 @@
 """Energy observable facades."""
 
-from euskera.observables.energy_mass import energEng
-from euskera.observables.conserv_quant import Energ
+from euskera.observables.background_conserv_quant import energEng
+from euskera.observables.simulation_conserv_quant import Energ
 
 __all__ = ["Energ", "energEng"]

@@ -1,4 +1,4 @@
-"""Canonical background systems API."""
+"""SYSTEM OF DIFFERENTIAL EQUATIONS FOR THE MULTIFREQUENCY CASE"""
 import warnings
 import numpy as np
 

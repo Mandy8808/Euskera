@@ -5,7 +5,7 @@ import pytest
 
 import euskera
 from euskera.models.models import Models
-from euskera.observables.conserv_quant import Npar
+from euskera.observables.simulation_conserv_quant import Npar
 
 
 def _profile(resolution):

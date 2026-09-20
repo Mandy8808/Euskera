@@ -11,4 +11,4 @@ def test_spectral_namespace_exports_core_functions():
     assert callable(backgroundOper)
     assert callable(espectro)
     assert callable(plotImag)
-    assert importlib.util.find_spec("euskera.numerics.spectral") is None
+    assert importlib.util.find_spec("euskera.numerics") is None

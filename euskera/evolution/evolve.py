@@ -12,7 +12,7 @@ except ImportError:
     pyfftw = None
     pyfftwOpt = False
 
-from euskera.observables import conserv_quant as cq
+from euskera.observables import simulation_conserv_quant as cq
 from euskera.evolution import evolut_routines as ev
 from euskera.core import grids as gd
 from euskera.evolution import potential as pt

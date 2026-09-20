@@ -39,7 +39,6 @@ jobs:
               "euskera.evolution",
               "euskera.io",
               "euskera.models",
-              "euskera.numerics",
               "euskera.observables",
               "euskera.tools",
               "euskera.visualization",

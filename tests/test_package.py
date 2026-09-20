@@ -7,7 +7,7 @@ import euskera
 import euskera.backgrounds as backgrounds
 import euskera.evolution as evolution
 from euskera.evolution import potential
-from euskera.observables.conserv_quant import Npar
+from euskera.observables.simulation_conserv_quant import Npar
 from euskera.core.grids import KGrid, RealGrid
 from euskera.models.models import Models
 from euskera.evolution import EvolutionConfig

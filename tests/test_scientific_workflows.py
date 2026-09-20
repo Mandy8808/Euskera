@@ -9,8 +9,8 @@ from euskera.backgrounds.shooting import freq_shoot, shoot
 from euskera.evolution.config import EvolutionConfig
 from euskera.io.config import OutputConfig
 from euskera.models.models import Models
-from euskera.observables.conserv_quant import Npar
-from euskera.observables.energy_mass import energEng, massVal
+from euskera.observables.simulation_conserv_quant import Npar
+from euskera.observables.background_conserv_quant import energEng, massVal
 
 
 def _gaussian_model():
