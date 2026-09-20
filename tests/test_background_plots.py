@@ -41,7 +41,13 @@ def test_plot_using_sol(monkeypatch):
 
 def test_plot_perf_small_case(monkeypatch):
     monkeypatch.setattr(plt, "show", lambda: None)
-    fig, axes = plotPerf([1.0, 0.0, 0.1, 0.0], 0.1, [1, 0.0, 0.0])
+    fig, axes = plotPerf(
+        [1.0, 0.0, 0.1, 0.0],
+        0.1,
+        [1, 0.0, 0.0],
+        py=False,
+        pz=False,
+    )
     assert fig is not None
     assert axes.lines
     plt.close(fig)

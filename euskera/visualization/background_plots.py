@@ -146,10 +146,20 @@ def plotPerf(U0, rTmax, arg, px=True, py=True,
     # Choosing profiles
     numFields = len(solution.y)//4  # Integer division
     if numFields == 1:
-        warnings.warn("The py, pz ccomponents was off because the number of fields is %d"%numFields)
+        if py or pz:
+            warnings.warn(
+                "The py and pz components were disabled because the number "
+                "of fields is %d" % numFields,
+                stacklevel=2,
+            )
         py, pz = False, False
     elif numFields == 2:
-        warnings.warn("The pz component was off because the number of fields is %d"%numFields)
+        if pz:
+            warnings.warn(
+                "The pz component was disabled because the number of fields "
+                "is %d" % numFields,
+                stacklevel=2,
+            )
         pz = False
 
     # Extract solution components
@@ -189,4 +199,3 @@ def plotPerf(U0, rTmax, arg, px=True, py=True,
     # Display the plot
     plt.show()
     return _, ax
-
