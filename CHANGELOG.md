@@ -1,0 +1,15 @@
+# Changelog
+
+## 1.1.0
+
+- Added reproducible, lightweight smoke coverage for initial profiles, short
+  Gaussian workflows, saved-data reading and basic visualisation. Heavy
+  notebooks are intentionally not executed in CI.
+- Added `scientific` pytest marker and small resolution-comparison tests.
+  These checks validate finite results and a minimum resolution consistency;
+  they are not a substitute for a production convergence study.
+- Promoted the typed `EvolutionConfig`, `OutputConfig` and
+  `DiagnosticsConfig` workflow API and documented the canonical imports.
+- Legacy update dictionaries remain supported for migration, but new code
+  should use typed configurations. No legacy directories or scientific data
+  were removed.

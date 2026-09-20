@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "euskera"
-version = "1.0.0"
+version = "1.1.0"
 description = "Numerical time evolution for Schrodinger-Poisson and Gross-Pitaevskii-Poisson systems"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,3 +31,6 @@ include = ["euskera*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["-ra"]
+markers = [
+    "scientific: small numerical validation and resolution-comparison tests",
+]

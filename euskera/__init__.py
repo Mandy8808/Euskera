@@ -1,4 +1,6 @@
-# modulo/__init__.py
+"""Public API for Euskera's numerical evolution workflows."""
+
+__version__ = "1.1.0"
 
 # Main evolution routines
 from .evolution.evolve import evolve
@@ -36,6 +38,7 @@ from .observables.config import DiagnosticsConfig
 
 # Define available imports
 __all__ = [
+    "__version__",
     # Core evolution routines
     'evolve', 'PKP',
     'RealGrid', 'KGrid', 'meshgrid',

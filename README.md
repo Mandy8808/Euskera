@@ -28,6 +28,7 @@ resources. Use the links below to navigate directly to the part you need.
 - [Examples and scientific resources](#examples-and-scientific-resources)
 - [Technical documentation](#technical-documentation)
 - [Development and validation](#development-and-validation)
+- [Changelog](CHANGELOG.md)
 - [Citation and contact](#citation-and-contact)
 
 ## Theoretical scope
@@ -192,6 +193,7 @@ Run the test suite:
 
 ```bash
 python -m pytest
+python -m pytest -m scientific
 ```
 
 Compile both packages:
@@ -209,6 +211,10 @@ python -m pip wheel . --no-deps
 The GitHub Actions workflow tests the package on Python 3.10, 3.11, 3.12,
 3.13 and 3.14. It installs the package, compiles the sources and runs the
 tests.
+
+The `scientific` marker contains intentionally small resolution-comparison
+checks. They validate minimum consistency and finite short runs; they are not
+a replacement for a production convergence study.
 
 ## Citation and contact
 
