@@ -2,7 +2,7 @@
 import warnings
 import numpy as np
 from scipy.integrate import solve_ivp
-from . import plot_conf as cplot
+from euskera.visualization import background_plots as cplot
 from .systems import systemMultifrequency
 from .solvers import shoot, freq_shoot, identify, freq_shoot2, identify2
 

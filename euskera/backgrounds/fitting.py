@@ -5,7 +5,6 @@ from scipy.interpolate import interp1d
 from scipy.integrate import solve_ivp, quad
 from scipy.optimize import root_scalar
 from euskera.observables import energy_mass as em
-from . import plot_conf as cplot
 from .systems import systemMultifrequency
 from .solvers import shoot, freq_shoot, identify, freq_shoot2, identify2
 

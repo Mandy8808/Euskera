@@ -22,6 +22,7 @@ from .io.save_data import data_Objgenerator, fdata_save, nameData, JoinFilesInOn
 # Plot configurations
 from .visualization.configuration import general, FigParam, LineParam, axesParam, labelParam, legendParam, fontParam
 from .visualization.plot_tools import colorBar_and_normaliz, ShowPlaneProf, PlaneProf, Plot3DCorrProf, imagshow2D, colored_line
+from .visualization.background_plots import plotUsingPerf, plotUsingDiscSol, plotUsingSol, plotPerf
 
 # Models
 from .models.models import Models, update_parameters, dict_type, solitonProf
@@ -59,6 +60,7 @@ __all__ = [
     # Plotting
     'general', 'FigParam', 'LineParam', 'axesParam', 'labelParam', 'legendParam', 'fontParam',
     'colorBar_and_normaliz', 'ShowPlaneProf', 'PlaneProf', 'Plot3DCorrProf', 'imagshow2D', 'colored_line',
+    'plotUsingPerf', 'plotUsingDiscSol', 'plotUsingSol', 'plotPerf',
     
     # main
     'Models', 'update_parameters', 'dict_type', 'solitonProf',

@@ -90,3 +90,7 @@ use minimal grids and integration intervals; they are smoke tests, not
 physical convergence studies. Notebook coverage is intentionally lightweight:
 the suite exercises equivalent setup/API cells and never executes the
 heavy, data-producing notebooks end to end.
+
+For background diagnostics, import plotting helpers from
+`euskera.visualization` and select Matplotlib's non-interactive `Agg` backend
+in automated jobs.

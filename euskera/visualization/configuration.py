@@ -7,6 +7,13 @@ import matplotlib.font_manager as font_manager
 from cycler import cycler
 ###################################################################################################
 
+def get_colors():
+    """Return the shared colour palette used by Euskera plots."""
+    return (
+        '#1a1919', '#f0784d', '#2681ab', '#ab262f', '#bc92e0',
+        '#486318', '#ed5b0c', '#f0a092', '#484f07', '#694d0c'
+    )
+
 
 ########### main-function
 #############################################################################

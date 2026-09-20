@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import solve_ivp, quad
 from scipy.optimize import root_scalar
 from euskera.observables import energy_mass as em
-from . import plot_conf as cplot
+from euskera.visualization import background_plots as cplot
 from .profiles import profilesFromSolut
 
 def mainExt(datos, mult=False, rmin=0, Nptos=2000, fac=1, info=False,

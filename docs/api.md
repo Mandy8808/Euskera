@@ -138,3 +138,10 @@ system(...)
 
 The background API is lower-level than `euskera.evolve`; use the relevant
 notebook or source docstring when selecting a solver.
+
+### Background plotting
+
+`euskera.visualization` provides `plotUsingPerf`, `plotUsingDiscSol`,
+`plotUsingSol` and `plotPerf`. They consume discrete profile arrays or
+`solve_ivp` results and return the created figure and axes (or axes for plotUsingPerf). Plot settings are
+centralized in `euskera.visualization.configuration`.

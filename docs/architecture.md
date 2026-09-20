@@ -69,3 +69,7 @@ are saved. HDF5 is available through the saving API when `h5py` is installed.
 Avoid writing generated output into the source directories tracked by Git.
 Use a dedicated local output directory and retain the parameter file with the
 resulting data.
+
+Background plotting helpers are canonical visualization exports rather than
+modules under `euskera.backgrounds`; shared Matplotlib configuration is also
+centralized in `euskera.visualization.configuration`.

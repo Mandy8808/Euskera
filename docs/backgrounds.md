@@ -18,3 +18,7 @@ The repository also contains the generated
 [`SP_system.pdf`](../references/SP_system.pdf) when available. Numerical
 helpers and public names are listed in the [API guide](api.md); the data flow
 is described in [architecture](architecture.md).
+
+Background solvers do not own plotting configuration. For diagnostic plots,
+use `euskera.visualization.background_plots`; this keeps solver modules
+independent of plotting implementation details.
