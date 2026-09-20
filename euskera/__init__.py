@@ -31,6 +31,9 @@ from .models.proca_model import proca_Model, build_proca, compute_polarization_v
 # Workflow-oriented namespaces. The legacy modules remain available for
 # backwards compatibility while new code can use these stable boundaries.
 from . import backgrounds, core, evolution, io, numerics, observables, visualization
+from .evolution.config import EvolutionConfig
+from .io.config import OutputConfig
+from .observables.config import DiagnosticsConfig
 
 # Define available imports
 __all__ = [
@@ -73,4 +76,5 @@ __all__ = [
     # Workflow namespaces
     'backgrounds', 'core', 'evolution', 'io', 'numerics', 'observables',
     'visualization',
+    'EvolutionConfig', 'OutputConfig', 'DiagnosticsConfig',
 ]

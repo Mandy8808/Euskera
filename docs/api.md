@@ -6,6 +6,9 @@ remain supported during migration.
 
 ```python
 from euskera.evolution import evolve
+from euskera.evolution import EvolutionConfig
+from euskera.io import OutputConfig
+from euskera.observables import DiagnosticsConfig
 from euskera.backgrounds import system
 from euskera.core import RealGrid
 from euskera.observables import massVal
@@ -53,6 +56,22 @@ euskera.evolve(
     },
 )
 ```
+
+For new code, typed configurations validate values at construction time:
+
+```python
+evolution = EvolutionConfig(gridlength=4.0, resol=64, tmax=0.5)
+output = OutputConfig(address="simulation_data/gaussian_run", save_number=5)
+diagnostics = DiagnosticsConfig(Numb_Part=True, Energ=True)
+euskera.evolve(model_parameters, evolution_config=evolution,
+               output_config=output, diagnostics_config=diagnostics)
+```
+
+The canonical configurations take precedence over legacy
+`simulation_parameters_update`, `salva_data_update` and
+`comp_conserv_update` values when both are supplied. Legacy mappings remain
+supported unchanged. `to_dict()` and `from_legacy()` bridge dataclasses and
+the dictionaries consumed by the numerical kernels.
 
 Important simulation options include `lambda_value`, `num_threads`,
 `gridlength`, `resol`, `step_factor`, `t0`, `tmax`, `rmax`, `Plim`,

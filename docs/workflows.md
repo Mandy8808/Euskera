@@ -21,21 +21,21 @@ For reproducible runs, set the output address and save cadence instead of
 relying on the defaults:
 
 ```python
-save_config = {
-    "format": "npz",
-    "address": "runs/my_experiment",
-    "save_number": 20,
-    "data_save": {
-        "grid": True,
-        "save_rho": True,
-        "save_psi": False,
-        "save_phi": False,
-        "save_energies": True,
-    },
-}
+from euskera.evolution import EvolutionConfig
+from euskera.io import OutputConfig
+from euskera.observables import DiagnosticsConfig
+
+evolution = EvolutionConfig(gridlength=10, resol=128, tmax=1)
+save_config = OutputConfig(
+    address="runs/my_experiment", save_number=20,
+    data_save={"grid": True, "save_rho": True, "save_psi": False,
+               "save_phi": False, "save_energies": True},
+)
+diagnostics = DiagnosticsConfig()
 ```
 
-Pass this mapping as `salva_data_update` to `euskera.evolve`. Keep the
+Pass `save_config` as `output_config` (and the other configurations as
+`evolution_config` and `diagnostics_config`) to `euskera.evolve`. Keep the
 configuration and generated data together so a run can be reconstructed.
 
 ## Select conserved quantities
@@ -44,16 +44,10 @@ The default diagnostics include particle number and energy. Additional
 diagnostics can be enabled with `comp_conserv_update`:
 
 ```python
-diagnostics = {
-    "Numb_Part": True,
-    "Energ": True,
-    "Pi": True,
-    "Ji": False,
-    "Frequency": True,
-}
+diagnostics = DiagnosticsConfig(Pi=True, Frequency=True)
 ```
 
-Only enable expensive diagnostics when they are needed for the analysis,
+Pass `diagnostics` as `diagnostics_config`; only enable expensive diagnostics when they are needed for the analysis,
 especially at high resolution.
 
 ## Optional Fourier acceleration

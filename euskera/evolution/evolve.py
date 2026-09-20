@@ -20,6 +20,9 @@ from euskera.models import models as md
 from euskera.visualization import plot_tools as pl
 from euskera.io import save_data as sv
 from euskera.tools import tools as to
+from euskera.evolution.config import EvolutionConfig
+from euskera.io.config import OutputConfig
+from euskera.observables.config import DiagnosticsConfig
 
 ###################################################################################################
 
@@ -31,6 +34,9 @@ def evolve(model_parameters,
            salva_data_update=None,
            simulation_parameters_update=None,
            comp_conserv_update=None,
+           evolution_config=None,
+           output_config=None,
+           diagnostics_config=None,
            info=False):
 
     ######### CHECKING IF THE MODEL EXIST IN PALET OF MODEL
@@ -94,6 +100,29 @@ def evolve(model_parameters,
     }
     if comp_conserv_update:
         comp_conserv = to.update_simulation_parameters(comp_conserv_update, comp_conserv)
+
+    # Legacy mappings are applied first for compatibility.  A canonical
+    # dataclass is an explicit, newer choice and therefore wins on conflicts.
+    if evolution_config is not None:
+        if isinstance(evolution_config, dict):
+            evolution_config = EvolutionConfig.from_legacy(evolution_config)
+        if not isinstance(evolution_config, EvolutionConfig):
+            raise TypeError("evolution_config must be an EvolutionConfig")
+        simulation_parameters.update(evolution_config.to_dict())
+    if output_config is not None:
+        if isinstance(output_config, dict):
+            output_config = OutputConfig.from_legacy(output_config)
+        if not isinstance(output_config, OutputConfig):
+            raise TypeError("output_config must be an OutputConfig")
+        output_values = output_config.to_dict()
+        output_values["data_save"] = dict(output_config.data_save)
+        salva_data.update(output_values)
+    if diagnostics_config is not None:
+        if isinstance(diagnostics_config, dict):
+            diagnostics_config = DiagnosticsConfig.from_legacy(diagnostics_config)
+        if not isinstance(diagnostics_config, DiagnosticsConfig):
+            raise TypeError("diagnostics_config must be a DiagnosticsConfig")
+        comp_conserv.update(diagnostics_config.to_dict())
 
     ######################### Saving the parameters
     to.save_parameters(model_parameters, simulation_parameters, salva_data, comp_conserv, save_name="parameters")

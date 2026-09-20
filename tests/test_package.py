@@ -10,6 +10,10 @@ from euskera.main import potential
 from euskera.observables.conserv_quant import Npar
 from euskera.core.grids import KGrid, RealGrid
 from euskera.models.models import Models
+from euskera.evolution import EvolutionConfig
+from euskera.io import OutputConfig
+from euskera.observables import DiagnosticsConfig
+from euskera.backgrounds.profiles import profilesFromSolut
 
 
 def test_package_import_exposes_public_api():
@@ -140,6 +144,37 @@ def test_gaussian_model_initializes_small_wavefunction():
     assert rho_i.shape == (1, 4, 4, 4)
     assert np.isfinite(psi).all()
     assert np.isfinite(rho_i).all()
+
+
+def test_typed_configurations_validate_and_round_trip_legacy():
+    evolution = EvolutionConfig(gridlength=4.0, resol=8, tmax=0.1)
+    output = OutputConfig(address="runs/test", save_number=2)
+    diagnostics = DiagnosticsConfig(Pi=True)
+
+    assert EvolutionConfig.from_legacy(evolution.to_dict()) == evolution
+    assert OutputConfig.from_legacy(output.to_dict()) == output
+    assert DiagnosticsConfig.from_legacy(diagnostics.to_dict()) == diagnostics
+    with pytest.raises(ValueError):
+        EvolutionConfig.from_legacy({"not_a_parameter": 1})
+
+
+def test_typed_configurations_are_public_canonical_imports():
+    assert euskera.EvolutionConfig is EvolutionConfig
+    assert euskera.OutputConfig is OutputConfig
+    assert euskera.DiagnosticsConfig is DiagnosticsConfig
+
+
+def test_background_profile_is_deterministic_and_finite():
+    result = profilesFromSolut(
+        (0.5, 1.0, 0, 0.0, [], None, "DOP853", 1e-8, 1e-9, 0.0),
+        Nptos=8,
+    )
+    energy, mass, radius, profiles_f = result[:4]
+    assert radius.shape == (8,)
+    assert np.isfinite(radius).all()
+    assert np.isfinite(profiles_f[0]).all()
+    assert np.isfinite(energy).all()
+    assert np.isfinite(mass).all()
 
 
 @pytest.mark.parametrize("module_name", ["euskera.evolution.evolve", "euskera.models.models"])

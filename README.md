@@ -109,6 +109,9 @@ The package has two public top-level imports:
 ```python
 import euskera
 from euskera.backgrounds import system
+from euskera.evolution import EvolutionConfig
+from euskera.io import OutputConfig
+from euskera.observables import DiagnosticsConfig
 ```
 
 ## First steps
@@ -134,6 +137,22 @@ print(euskera.Models)
 print(euskera.evolve)
 print(system)
 ```
+
+Typed simulation settings are available alongside the legacy update
+dictionaries:
+
+```python
+euskera.evolve(
+    model_parameters,
+    evolution_config=EvolutionConfig(gridlength=4, resol=64, tmax=0.5),
+    output_config=OutputConfig(address="runs/gaussian"),
+    diagnostics_config=DiagnosticsConfig(),
+)
+```
+
+When both styles are passed, legacy updates are applied first and explicit
+canonical configurations win on overlapping keys. Use `to_dict()` and
+`from_legacy()` to bridge existing configuration files.
 
 Simulation output is written as NPZ by default. HDF5 output is available
 through the saving API when `h5py` is installed. Generated output should
