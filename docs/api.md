@@ -57,7 +57,7 @@ euskera.evolve(
 Important simulation options include `lambda_value`, `num_threads`,
 `gridlength`, `resol`, `step_factor`, `t0`, `tmax`, `rmax`, `Plim`,
 `cmass`, `plott0`, `Boverlap` and `methodEnerg`. The defaults are defined in
-`euskera.main.main`.
+`euskera.evolution.evolve`.
 
 ## Initial models
 

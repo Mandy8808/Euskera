@@ -1,6 +1,6 @@
 """Plotting facade."""
 
-from euskera.plots.plot_tools import *
+from euskera.visualization.plot_tools import *
 
 __all__ = [
     "colorBar_and_normaliz", "ShowPlaneProf", "PlaneProf",

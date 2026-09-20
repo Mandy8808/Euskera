@@ -1,7 +1,5 @@
-"""Time-evolution workflow."""
-
+"""Time-evolution algorithms and workflows."""
 from .evolve import evolve
 from .potential import Upotential
 from .split_step import PKP
-
 __all__ = ["evolve", "PKP", "Upotential"]

@@ -1,5 +1,5 @@
 """Chebyshev discretisation facade."""
 
-from background.SpectralMeth.spectralMet import cheb, chevQuant
+from euskera.numerics.spectral.spectralMet import cheb, chevQuant
 
 __all__ = ["cheb", "chevQuant"]

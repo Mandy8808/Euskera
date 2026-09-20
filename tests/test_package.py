@@ -7,8 +7,8 @@ import euskera
 import background
 import euskera.main as euskera_main
 from euskera.main import potential
-from euskera.main.conserv_quant import Npar
-from euskera.main.grids import KGrid, RealGrid
+from euskera.observables.conserv_quant import Npar
+from euskera.core.grids import KGrid, RealGrid
 from euskera.models.models import Models
 
 
@@ -142,6 +142,6 @@ def test_gaussian_model_initializes_small_wavefunction():
     assert np.isfinite(rho_i).all()
 
 
-@pytest.mark.parametrize("module_name", ["euskera.main.main", "euskera.models.models"])
+@pytest.mark.parametrize("module_name", ["euskera.evolution.evolve", "euskera.models.models"])
 def test_internal_modules_import_as_package(module_name):
     assert importlib.import_module(module_name)

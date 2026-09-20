@@ -1,25 +1,25 @@
 # modulo/__init__.py
 
 # Main evolution routines
-from .main.main import evolve
-from .main.evolut_routines import PKP
-from .main.grids import RealGrid, KGrid, meshgrid
-from .main.potential import Upotential
-from .main.conserv_quant import Conserv, Npar, Energ, centpotetE, selfinterCondensateE, selfinterFieldE, kintE, Pi
-from .main.frequency import main_frequency, frequMet1, frequMet2
+from .evolution.evolve import evolve
+from .evolution.evolut_routines import PKP
+from .core.grids import RealGrid, KGrid, meshgrid
+from .evolution.potential import Upotential
+from .observables.conserv_quant import Conserv, Npar, Energ, centpotetE, selfinterCondensateE, selfinterFieldE, kintE, Pi
+from .observables.frequency import main_frequency, frequMet1, frequMet2
 
 # Video visualization (optional import)
-from .video.video_make import Visualization
+from .visualization.video_make import Visualization
 
 # Tools
 from .tools.tools import update_simulation_parameters, dtime, overlap, overlap_check, progressbar, massVal, read_parameter, give_parameter
 
 # Data saving
-from .save.save_data import data_Objgenerator, fdata_save, nameData, JoinFilesInOneZip, StoreSolution
+from .io.save_data import data_Objgenerator, fdata_save, nameData, JoinFilesInOneZip, StoreSolution
 
 # Plot configurations
-from .plots.configuration import general, FigParam, LineParam, axesParam, labelParam, legendParam, fontParam
-from .plots.plot_tools import colorBar_and_normaliz, ShowPlaneProf, PlaneProf, Plot3DCorrProf, imagshow2D, colored_line
+from .visualization.configuration import general, FigParam, LineParam, axesParam, labelParam, legendParam, fontParam
+from .visualization.plot_tools import colorBar_and_normaliz, ShowPlaneProf, PlaneProf, Plot3DCorrProf, imagshow2D, colored_line
 
 # Models
 from .models.models import Models, update_parameters, dict_type, solitonProf

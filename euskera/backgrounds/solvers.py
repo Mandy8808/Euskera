@@ -1,6 +1,6 @@
 """Background shooting and system solvers."""
 
-from background.Background.background import (
+from euskera.backgrounds.background import (
     MatrizDXDu,
     algebSyst,
     freq_shoot,

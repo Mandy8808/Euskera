@@ -1,6 +1,6 @@
 """Asymptotic extensions for background profiles."""
 
-from background.Background.background import (
+from euskera.backgrounds.background import (
     Asy_sProf,
     Asy_sProf_v2,
     Asy_uProf,

@@ -15,7 +15,7 @@ except ImportError:
     pyfftwOpt = False  
 
 
-from euskera.main import grids as gd
+from euskera.core import grids as gd
 from euskera.tools import tools as to
 ###################################################################################################
 
