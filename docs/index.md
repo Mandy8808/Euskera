@@ -15,15 +15,33 @@ shortest possible example. This index groups the longer guides by task.
 ## Understanding the package
 
 - [Package map](package-map.md): navigable modules and public symbols.
-- [Backgrounds](backgrounds.md): Schrödinger–Poisson/Gross–Pitaevskii–Poisson
-  context, models and scientific references.
+- [Background overview](backgrounds.md): physical context and background
+  module overview.
 - [Architecture](architecture.md): package boundaries and simulation data
   flow.
 - [API guide](api.md): public functions, models, grids and diagnostics.
 - [Simulations](simulations.md): reproducible run configuration and output.
 - [Visualisation](visualization.md): inspecting saved data and exporting
   figures or videos.
-- [Workflows](workflows.md): practical recipes and notebook-oriented usage.
+- [Practical workflows](workflows.md): notebook-oriented usage.
+
+## Theory and methods
+
+- [Background solutions](theory/background-solutions.md): equations and
+  radial background families from arXiv:2412.06901.
+- [Spectral method](theory/spectral-method.md): Chebyshev discretisation and
+  stability analysis from arXiv:2512.04376.
+- [Boundary-value method](methods/boundary-value-method.md): numerical
+  parameter correction from arXiv:2208.13221.
+
+## Workflows
+
+- [Background shooting](workflows/background-shooting.md): node and frequency
+  selection for radial solutions.
+- [Background fitting](workflows/background-fitting.md): independent
+  boundary-condition parameter correction.
+- [Dynamical simulation](workflows/simulation.md): three-dimensional time
+  evolution and diagnostics.
 
 ## Contributing
 

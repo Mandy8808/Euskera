@@ -9,6 +9,44 @@ Euskera is one scientific package with two primary workflows:
 | `euskera.evolution` | Three-dimensional field evolution and potential solving |
 | `euskera.backgrounds` | Radial background solutions, shooting and profile construction |
 
+These workflows are related but independent:
+
+```mermaid
+flowchart LR
+    Backgrounds[Background construction]
+    Simulations[Dynamical simulation]
+    Shared[Shared observables and visualization]
+
+    Backgrounds --> Shared
+    Simulations --> Shared
+    Backgrounds -. optional profile .-> Simulations
+```
+
+The background workflow itself separates shooting from fitting:
+
+```mermaid
+flowchart TD
+    Equations[Background equations]
+    Shooting[Shooting]
+    Profile[Numerical profile]
+    Fitting[Fitting]
+    Final[Corrected profile]
+
+    Equations --> Shooting
+    Shooting --> Profile
+    Profile --> Fitting
+    Fitting --> Final
+```
+
+The theory and methods are documented separately:
+
+- [Background solutions](theory/background-solutions.md) follows
+  [arXiv:2412.06901](https://arxiv.org/pdf/2412.06901).
+- [Spectral method](theory/spectral-method.md) follows
+  [arXiv:2512.04376](https://arxiv.org/pdf/2512.04376).
+- [Boundary-value method](methods/boundary-value-method.md) follows
+  [arXiv:2208.13221](https://arxiv.org/pdf/2208.13221).
+
 Shared concerns have explicit namespaces:
 
 | Namespace | Responsibility |
