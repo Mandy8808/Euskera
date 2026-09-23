@@ -24,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 fftw = ["pyfftw"]
 test = ["pytest"]
+notebooks = ["nbclient", "nbformat", "ipykernel"]
 
 [tool.setuptools.packages.find]
 include = ["euskera*"]

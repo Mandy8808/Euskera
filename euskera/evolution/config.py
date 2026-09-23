@@ -5,6 +5,8 @@ legacy numerical kernels.  This keeps the kernels stable while providing a
 validated, discoverable public API.
 """
 
+import math
+
 from dataclasses import asdict, dataclass, fields
 from typing import Any, Mapping
 
@@ -40,6 +42,15 @@ class EvolutionConfig:
         for name in ("lambda_value", "t0", "rmax", "Plim", "cmass"):
             if isinstance(getattr(self, name), bool) or not isinstance(getattr(self, name), (int, float)):
                 raise TypeError(f"{name} must be numeric")
+        for name in ("lambda_value", "t0", "rmax", "Plim", "cmass", "gridlength", "step_factor", "tmax"):
+            if not math.isfinite(getattr(self, name)):
+                raise ValueError(f"{name} must be finite")
+        if self.t0 != 0:
+            raise ValueError("t0 must be zero; tmax is the simulation duration")
+        if self.rmax <= 0 or self.Plim <= 0:
+            raise ValueError("rmax and Plim must be positive")
+        if self.methodEnerg not in (1, 2):
+            raise ValueError("methodEnerg must be 1 or 2")
         if isinstance(self.methodEnerg, bool) or not isinstance(self.methodEnerg, int):
             raise TypeError("methodEnerg must be an integer")
         for name in ("plott0", "Boverlap", "info"):

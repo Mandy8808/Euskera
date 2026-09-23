@@ -54,3 +54,5 @@ shortest possible example. This index groups the longer guides by task.
 - [Profiles](../profiles/)
 - [Representative simulation data](../simulation_data/)
 - [Scientific references](../references/)
+
+- [Executable workflow notebooks](../examples/workflows/README.md)

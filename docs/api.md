@@ -165,3 +165,12 @@ returns `{snapshot_index: {quantity_name: value}}`, sorted by numeric index.
 `data_Objgenerator(..., comp_conserv=...)` support named diagnostic writing.
 `evolve` supplies the metadata automatically. See
 [HDF5 diagnostics](simulations.md#hdf5-diagnostics) for the layout and examples.
+
+
+### Run validation and timing
+
+`evolve` validates merged configuration and initial fields before creating
+output. `t0` must be zero; `tmax` specifies duration. `OutputConfig` accepts
+`copy_profiles: bool = False`. `StoreSolution.save_file(data, ti,
+physical_time=None)` and `fdata_save(..., physical_time=None)` accept physical
+timestamps separately from counters. See [simulations](simulations.md).

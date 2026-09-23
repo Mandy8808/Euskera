@@ -19,6 +19,8 @@ from euskera.models import models as md
 from euskera.visualization import simulation_plots as pl
 from euskera.io import save_data as sv
 from euskera.tools import tools as to
+from euskera.models.validation import validate_models
+from euskera.io.provenance import write_run_metadata
 from euskera.evolution.config import EvolutionConfig
 from euskera.io.config import OutputConfig
 from euskera.observables.config import DiagnosticsConfig
@@ -40,6 +42,7 @@ def evolve(model_parameters,
 
     ######### CHECKING IF THE MODEL EXIST IN PALET OF MODEL
     #model_used = md.Models(modelo_name=model, parameters_update=model_parameters, info=info)
+    validate_models(model_parameters, field_components)
     model_used = md.Models(info=info, **model_parameters)
 
     ######### DEFAULT CONFIGURATIONS
@@ -124,7 +127,21 @@ def evolve(model_parameters,
         comp_conserv.update(diagnostics_config.to_dict())
 
     ######################### Saving the parameters
-    to.save_parameters(model_parameters, simulation_parameters, salva_data, comp_conserv, save_name="parameters")
+    simulation_parameters = EvolutionConfig.from_legacy(simulation_parameters).to_dict()
+    # Revalidate merged mappings and dataclass instances before any output.
+    output_validated = OutputConfig.from_legacy(salva_data)
+    # Legacy partial data_save mappings retain their original selection.
+    requested_data_save = salva_data["data_save"]
+    salva_data = output_validated.to_dict()
+    salva_data["data_save"] = requested_data_save
+    comp_conserv = DiagnosticsConfig.from_legacy(comp_conserv).to_dict()
+    if any(name != "gaussian_function" for name in model_parameters):
+        if simulation_parameters["Boverlap"] and simulation_parameters["Plim"] >= simulation_parameters["rmax"]:
+            raise ValueError("Plim must be less than rmax when Boverlap is enabled")
+    ht, its_per_save, num_steps = to.dtime(
+        simulation_parameters["tmax"], simulation_parameters["gridlength"],
+        simulation_parameters["resol"], simulation_parameters["step_factor"], salva_data["save_number"])
+
 
     ######################### Check if pyFFTW is available
     if not pyfftwOpt:
@@ -138,7 +155,7 @@ def evolve(model_parameters,
     data_save = salva_data.get("data_save")
     address = salva_data.get("address")
     formt = salva_data.get("format")
-    data_save_obj = sv.data_Objgenerator(data_save=data_save, address=address, format=formt, comp_conserv=comp_conserv)
+
 
     ######################### Initialize wavefunction and density
     (xarray, yarray, zarray, distarray), (psi, rho_i) = model_used.call_model(field_components=field_components,
@@ -179,17 +196,18 @@ def evolve(model_parameters,
         print("Initial conserved quantities:", cData)
     ################################################################################################################
 
+    if not all(np.isfinite(value).all() for value in (psi, rho, phisp)):
+        raise ValueError("Initial fields and potential must be finite")
+    if comp_conserv["Energ"] and not np.isfinite(float(cData[list(key for key, enabled in comp_conserv.items() if enabled).index("Energ")])):
+        raise ValueError("Initial energy must be finite; check grid and central potential")
+    to.save_parameters(model_parameters, simulation_parameters, salva_data, comp_conserv, save_name="parameters")
+    write_run_metadata(address, model_parameters, simulation_parameters, salva_data,
+                       comp_conserv, field_components, "pyfftw" if pyfftwOpt else "numpy", ht, num_steps)
+    data_save_obj = sv.data_Objgenerator(data_save, address, formt, comp_conserv=comp_conserv)
+
     ########################## Saving
     data = ([xarray, yarray, zarray], rho, psi, phisp, cData)
-    sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
-    ################################################################################################################
-
-    ######################### Compute time step parameters
-    tmax = simulation_parameters.get("tmax")
-    step_factor = simulation_parameters.get("step_factor")
-    save_number = salva_data.get("save_number")
-    ht, its_per_save, num_steps = to.dtime(tmax, gridlength, resol, step_factor, save_number)
-
+    sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=0.0)
     ################################################################################################################
 
     ######################### Initialize simulation fields and parameters

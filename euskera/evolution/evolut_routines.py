@@ -91,7 +91,7 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
             data = [psi, rho, phisp, distarray, karray2, kvec]
             cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg, max_pos=max_pos)  # method=1
             data = ([None, None, None], rho, psi, phisp, cData)
-            sv.fdata_save(ti=count, data=data, data_save_obj=data_save_obj, resol=resol, end=False)
+            sv.fdata_save(ti=count, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=(i + 1) * ht)
             count += 1
 
         # Time tracking

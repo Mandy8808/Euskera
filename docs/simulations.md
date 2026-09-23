@@ -73,10 +73,13 @@ wavefunction values at the tracked positions, not fitted frequencies.
 Each snapshot group records `schema_version=1` and `diagnostic_names` in
 calculation order. With all diagnostics disabled, snapshot groups are empty.
 
-The suffixes and the `t` dataset are **save counters**, not physical times.
-For current runs beginning at zero, physical snapshot time is
-`counter * tmax / save_number`. This format does not add support for nonzero
-initial times.
+The group suffixes and legacy `t` dataset remain save counters. New runs also
+save `snapshot_index` (explicit counters) and `time` (physical times in code
+units), supplied by the integrator at each completed save step. Use `time`
+for analysis instead of reconstructing it from the number of files. Current
+runs require `t0=0`; `tmax` is duration, and nonzero `t0` is rejected.
+Direct `StoreSolution.save_file` calls may pass `physical_time`; the `time`
+dataset is omitted when any timestamp was not supplied, rather than guessed.
 
 Read the named quantities with:
 
@@ -112,3 +115,40 @@ store.close_file("end_save_energies")
 Alternatively, pass `comp_conserv` to `data_Objgenerator`. Diagnostic names are
 required for HDF5 diagnostic storage; the writer does not guess them from
 array positions or shapes.
+
+
+## Input validation and run preparation
+
+Both legacy dictionaries and typed configurations are validated after merging,
+before output directories or parameter files are created. Initial fields,
+potential and enabled initial energy are constructed and checked before output.
+Numeric settings must be finite; Gaussian widths, profile spacing and scales
+must be positive. Each radial profile must be a finite real one-dimensional
+array with at least two samples. Configurations require consistent component
+counts, three components for Proca polarization, and `2*ell+1` for ell models.
+Unknown output formats, saving flags and diagnostic options are rejected.
+Only energy methods 1 and 2 are accepted. A supplied dataclass that was mutated
+after construction is revalidated at run start.
+
+## Run provenance and optional profile copies
+
+Every `evolve` run writes `run_metadata.json` alongside `parameters.txt`. It
+records a unique run ID, creation time, Python and package versions, FFT backend,
+effective model/numerical/output/diagnostic settings, integration step size and
+step count. Effective model scales reflect the existing alpha=1 rule when
+self-interaction is enabled. Git revision and dirty state are recorded when
+available; unavailable values are null, not evidence of a clean checkout.
+A dirty flag does not archive uncommitted source changes.
+
+Radial profile descriptors contain SHA-256 hashes computed from dtype, shape
+and contiguous array bytes. Hashes identify data but cannot recreate them.
+To save the actual arrays as numeric entries in `input_profiles.npz`, use:
+
+```python
+output = OutputConfig(address="runs/reproducible", copy_profiles=True)
+```
+
+The profile descriptor's `copy_key` identifies its entry in that archive.
+Gaussian-only runs have no input radial profiles to copy. Keep the metadata,
+profile archive and matching source revision together for reproducibility.
+NPZ and HDF5 snapshots both retain `t` and add `snapshot_index` and `time`.

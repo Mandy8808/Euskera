@@ -49,6 +49,7 @@ def update_simulation_parameters(simulation_parameters_update, simulation_parame
         "save_number": int,
         "format": str,
         "address": str,
+        "copy_profiles": bool,
         "data_save": dict,
         "Numb_Part": bool,
         "Energ": bool,

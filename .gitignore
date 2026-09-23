@@ -58,3 +58,7 @@ results/
 *.swp
 *.swo
 *~
+
+# Executed notebook examples
+notebook-results/
+example_output/

@@ -50,3 +50,21 @@ jobs:
 
       - name: Run tests
         run: python -m pytest
+
+  notebooks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install ".[test,notebooks,fftw]"
+      - name: Analytic checks with both FFT backends
+        run: python -m pytest tests/test_scientific_regressions.py -q
+      - name: Execute workflow notebooks
+        run: python scripts/run_notebook_smoke.py --output-dir notebook-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-results
+          path: notebook-results/

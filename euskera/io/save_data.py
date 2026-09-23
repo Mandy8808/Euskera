@@ -29,7 +29,7 @@ def data_Objgenerator(data_save, address, format, comp_conserv=None):
                           for name, save in data_save.items() if save}
     return data_save_obj
 
-def fdata_save(ti, data, data_save_obj, resol, end=False):
+def fdata_save(ti, data, data_save_obj, resol, end=False, physical_time=None):
     """
     Saves simulation data.
 
@@ -73,7 +73,7 @@ def fdata_save(ti, data, data_save_obj, resol, end=False):
                     continue
                 if name == "grid" and ti != 0:
                     continue
-                obj.save_file(eval(save_map[name]), ti=None if name == "grid" else ti)
+                obj.save_file(eval(save_map[name]), ti=None if name == "grid" else ti, physical_time=physical_time)
     return None
 
 def nameData(address, file_format, info=True):
@@ -184,12 +184,13 @@ class StoreSolution:
         self.name = filename
         self.format = format.lower()  # Normalize format to lowercase
         self.time = []
+        self.physical_time = []
         self.diagnostic_names = diagnostic_names
 
         # Ensure directory exists
         os.makedirs(self.address, exist_ok=True)
 
-    def save_file(self, data, ti):
+    def save_file(self, data, ti, physical_time=None):
         """
         Save data to a file.
 
@@ -236,6 +237,7 @@ class StoreSolution:
 
             # Store time step
             self.time.append(ti)
+            self.physical_time.append(physical_time)
 
     def close_file(self, zip_name):
         """
@@ -245,12 +247,17 @@ class StoreSolution:
         - zip_name (str): Name of the final zip archive (without extension).
         """
         if self.address is not None:
+            times = {"t": np.array(self.time, dtype=float),
+                     "snapshot_index": np.array(self.time, dtype=int)}
+            if self.physical_time and all(t is not None for t in self.physical_time):
+                times["time"] = np.array(self.physical_time, dtype=float)
             # Save all the time points where solutions are saved
             if self.format == "npz" and self.name != "grid":
-                np.savez(os.path.join(self.address, f"{self.name}_t.dat"), t=np.array(self.time, dtype=float))
+                np.savez(os.path.join(self.address, f"{self.name}_t.dat"), **times)
             elif self.format == "hdf5" and self.name != "grid":
                 with h5py.File(os.path.join(self.address, f"{self.name}_t.h5"), "w") as f:
-                    f.create_dataset("t", data=np.array(self.time, dtype=float))
+                    for key, value in times.items():
+                        f.create_dataset(key, data=value)
 
             # Find all files of the selected format
             file_extension = "*.npz" if self.format == "npz" else "*.h5"

@@ -46,3 +46,19 @@ Use `read_hdf5_diagnostics` instead of treating `save_energies_<index>` as a sin
 array. Direct HDF5 diagnostic writers must supply `diagnostic_names`; the
 simulation pipeline does this automatically. NPZ diagnostics are unchanged.
 See [simulation output](simulations.md#hdf5-diagnostics).
+
+
+## Validated runs and physical time
+
+Nonzero `t0` is now rejected rather than silently ignored. `tmax` remains the
+simulation duration starting at zero. Unknown saving flags/formats, nonfinite
+parameters and invalid model configurations fail before output is created.
+`OutputConfig(copy_profiles=True)` optionally archives input radial arrays.
+
+Saved `t` retains its legacy counter meaning. Prefer the new `time` dataset
+for physical times and `snapshot_index` for indices. Direct storage callers
+must pass `physical_time` to obtain a `time` dataset. Existing NPZ/HDF5 readers
+can continue using their old keys; readers that enumerate every archive entry
+as a snapshot should filter by snapshot name and exclude metadata datasets.
+Every new simulation also writes `run_metadata.json`; see
+[run provenance](simulations.md#run-provenance-and-optional-profile-copies).

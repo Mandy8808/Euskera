@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added analytic spectral, kinetic, momentum and central-potential regression checks.
+- Validate merged configurations and initial fields before creating run output.
+- Record physical snapshot times, run metadata and optional hashed profile copies.
+- Added three self-contained workflow notebooks, a fresh-kernel smoke runner and CI.
+
+
 - Read Gaussian parameters by name and reject incomplete configurations.
 - Store HDF5 diagnostics as named numeric datasets, preserving complex samples
   and enabled-quantity metadata; added `read_hdf5_diagnostics` and round-trip tests.

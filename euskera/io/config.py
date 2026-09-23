@@ -20,6 +20,7 @@ class OutputConfig:
     address: str = "Data"
     save_number: int = 10
     data_save: dict[str, bool] = field(default_factory=lambda: dict(_DEFAULT_DATA_SAVE))
+    copy_profiles: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.format, str) or not self.format:
@@ -32,6 +33,13 @@ class OutputConfig:
             raise TypeError("data_save must be a mapping")
         if any(not isinstance(key, str) or not isinstance(value, bool) for key, value in self.data_save.items()):
             raise TypeError("data_save keys must be strings and values booleans")
+        self.format = self.format.lower()
+        if self.format not in ("npz", "hdf5"):
+            raise ValueError("format must be npz or hdf5")
+        if not isinstance(self.copy_profiles, bool):
+            raise TypeError("copy_profiles must be boolean")
+        if set(self.data_save) - set(_DEFAULT_DATA_SAVE):
+            raise ValueError("Unknown data_save keys")
         merged_data_save = dict(_DEFAULT_DATA_SAVE)
         merged_data_save.update(self.data_save)
         self.data_save = merged_data_save
