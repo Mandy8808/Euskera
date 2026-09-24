@@ -55,3 +55,5 @@ remain in [`examples/`](examples/).
 
 The project is distributed under the [GNU GPL](LICENSE.txt). Scientific
 background and references are in [`references/`](references/).
+
+See the [selective output guide](docs/selective-output.md) to retain planes and lines throughout evolution while saving volumes only in a final window.

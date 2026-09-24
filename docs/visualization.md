@@ -25,3 +25,7 @@ available under [`galleries/`](../galleries/), while sample outputs are in
 For frequency and oscillation analysis, see
 [`example_computing_oscilation_soliton_frequency.ipynb`](../examples/simulations/example_computing_oscilation_soliton_frequency.ipynb).
 The [API guide](api.md) lists diagnostic and frequency helpers.
+
+## Output by variable, geometry, and time
+
+See [selective output](selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.

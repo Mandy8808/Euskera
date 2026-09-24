@@ -152,3 +152,7 @@ The profile descriptor's `copy_key` identifies its entry in that archive.
 Gaussian-only runs have no input radial profiles to copy. Keep the metadata,
 profile archive and matching source revision together for reproducibility.
 NPZ and HDF5 snapshots both retain `t` and add `snapshot_index` and `time`.
+
+## Output by variable, geometry, and time
+
+See [selective output](selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.

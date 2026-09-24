@@ -33,3 +33,10 @@
 - Legacy update dictionaries remain supported for migration, but new code
   should use typed configurations. No legacy directories or scientific data
   were removed.
+
+## Selective output (unreleased)
+
+- Temporal rules by variable and geometry; three planes and axes for rho, psi, and phi.
+- Independent diagnostic calendars, potential half-step synchronization, and preserved global indices.
+- NPZ/HDF5 reading and plots with coordinates, orientation, and physical time; data_save compatibility.
+- Selective output guide and notebooks, numerical tests, and a change report.

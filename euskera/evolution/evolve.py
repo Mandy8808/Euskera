@@ -23,6 +23,7 @@ from euskera.models.validation import validate_models
 from euskera.io.provenance import write_run_metadata
 from euskera.evolution.config import EvolutionConfig
 from euskera.io.config import OutputConfig
+from euskera.io.selected_output import OutputSchedule
 from euskera.observables.config import DiagnosticsConfig
 
 ###################################################################################################
@@ -143,6 +144,9 @@ def evolve(model_parameters,
         simulation_parameters["resol"], simulation_parameters["step_factor"], salva_data["save_number"])
 
 
+    output_schedule = (OutputSchedule(output_validated, simulation_parameters["tmax"], comp_conserv)
+                       if output_validated.rules is not None else None)
+
     ######################### Check if pyFFTW is available
     if not pyfftwOpt:
         print("WARNING: pyFFTW not available, using NumPy instead.")
@@ -203,11 +207,18 @@ def evolve(model_parameters,
     to.save_parameters(model_parameters, simulation_parameters, salva_data, comp_conserv, save_name="parameters")
     write_run_metadata(address, model_parameters, simulation_parameters, salva_data,
                        comp_conserv, field_components, "pyfftw" if pyfftwOpt else "numpy", ht, num_steps)
-    data_save_obj = sv.data_Objgenerator(data_save, address, formt, comp_conserv=comp_conserv)
+    data_save_obj = (sv.data_Objgenerator(data_save, address, formt, comp_conserv=comp_conserv)
+                     if output_schedule is None else {})
 
     ########################## Saving
     data = ([xarray, yarray, zarray], rho, psi, phisp, cData)
-    sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=0.0)
+    if output_schedule is None:
+        sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=0.0)
+    else:
+        output_schedule.prepare([xarray[:, 0, 0], yarray[0, :, 0], zarray[0, 0, :]])
+        names = [name for name, enabled in comp_conserv.items() if enabled]
+        output_schedule.save(output_schedule.outputs_at(0, 0.0), 0, 0.0,
+                             rho, psi, phisp, dict(zip(names, cData)))
     ################################################################################################################
 
     ######################### Initialize simulation fields and parameters
@@ -221,6 +232,6 @@ def evolve(model_parameters,
     rho, phisp = ev.PKP(field_components, fields, param, distDat,
                         num_steps, obj, kvec, simulation_parameters,
                         comp_conserv, data_save_obj=data_save_obj,
-                        info=info)
+                        info=info, output_schedule=output_schedule)
     ################################################################################################################
     return None

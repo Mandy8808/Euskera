@@ -143,10 +143,25 @@ def centpotetE(rho, distarray, simulation_parameters):
     """
     # parameters used
     cmass = simulation_parameters["cmass"]
-    with np.errstate(divide='ignore', invalid='ignore'):
-        dens_centE = ne.evaluate("real((-cmass/distarray) * rho)")
 
+    if cmass == 0:
+        return 0.0
+
+    radio = np.where(distarray == 0, np.inf, distarray)
+    dens_centE = ne.evaluate("real((-cmass / radio) * rho)",
+                             local_dict={"cmass": cmass, "radio": radio, "rho": rho,},)
     return np.sum(dens_centE, dtype=np.float64)
+
+#def centpotetE(rho, distarray, simulation_parameters):
+#    """
+#    Compute the gravitational potential energy density.
+#    """
+#    # parameters used
+#    cmass = simulation_parameters["cmass"]
+#    with np.errstate(divide='ignore', invalid='ignore'):
+#        dens_centE = ne.evaluate("real((-cmass/distarray) * rho)")
+#
+#    return np.sum(dens_centE, dtype=np.float64)
 
 def selfinterCondensateE(rho, phisp, distarray, simulation_parameters):
     """

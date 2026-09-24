@@ -46,3 +46,7 @@ Use the background workflow first when the initial condition must be a
 numerically constructed radial profile. Otherwise, an analytic model can be
 used directly.
 
+
+## Output by variable, geometry, and time
+
+See [selective output](../selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.

@@ -2,6 +2,7 @@
 
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Mapping
+from .schedule import SaveRule
 
 __all__ = ["OutputConfig"]
 
@@ -21,8 +22,17 @@ class OutputConfig:
     save_number: int = 10
     data_save: dict[str, bool] = field(default_factory=lambda: dict(_DEFAULT_DATA_SAVE))
     copy_profiles: bool = False
+    rules: list[SaveRule] | None = None
 
     def __post_init__(self) -> None:
+        if self.rules is not None:
+            if not isinstance(self.rules, (list, tuple)):
+                raise TypeError("rules must be a sequence of SaveRule objects")
+            self.rules = [SaveRule(**rule) if isinstance(rule, Mapping) else rule for rule in self.rules]
+            if any(not isinstance(rule, SaveRule) for rule in self.rules):
+                raise TypeError("rules must contain SaveRule objects")
+            for rule in self.rules:
+                rule.__post_init__()
         if not isinstance(self.format, str) or not self.format:
             raise ValueError("format must be a non-empty string")
         if not isinstance(self.address, str) or not self.address:

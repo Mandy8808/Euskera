@@ -221,7 +221,7 @@ class StoreSolution:
                 np.savez(fname, **kwargs)
             elif self.format == "hdf5":
                 diagnostics = None
-                if self.name == "save_energies":
+                if self.name == "save_energies" or self.name.startswith("save_energies_"):
                     diagnostics = _diagnostic_datasets(data, self.diagnostic_names)
                 fname = os.path.join(self.address, f"{self.name}_u_{ti}.h5")
                 with h5py.File(fname, "w") as f:

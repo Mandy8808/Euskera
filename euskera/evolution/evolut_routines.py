@@ -22,7 +22,7 @@ from euskera.tools import tools as to
 ########### Time-evolution function
 #############################################################################
 
-def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulation_parameters, comp_conserv, data_save_obj, info=False):
+def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulation_parameters, comp_conserv, data_save_obj, info=False, output_schedule=None):
     """
     Time evolution of wavefunction psi using the Schrödinger-Poisson system.
 
@@ -79,20 +79,33 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
         (phisp, rho) = pt.Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=cmass, resol=resol, obj=obj,
                               check=False)
 
-        # Save step
-        if (((i + 1) % its_per_save) == 0) and halfstepornot == False:
-            # Next if statement ensures that an extra half step is performed at each save point
-            # psi = ne.evaluate("exp(-1j * 0.5 * ht * phisp) * psi")
-            psi = ne.evaluate(systema0)
-            rho = ne.evaluate("sum(rho_i, axis=0)")  # rho = np.sum(rho_i, axis=0)
-            halfstepornot = True
-
-            # Calculate energies and save data
-            data = [psi, rho, phisp, distarray, karray2, kvec]
-            cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg, max_pos=max_pos)  # method=1
-            data = ([None, None, None], rho, psi, phisp, cData)
-            sv.fdata_save(ti=count, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=(i + 1) * ht)
-            count += 1
+        # A common sampling calendar; selection never changes the integration step.
+        if ((i + 1) % its_per_save) == 0:
+            sample_index = (i + 1) // its_per_save
+            physical_time = (i + 1) * ht
+            selected = (output_schedule.outputs_at(sample_index, physical_time)
+                        if output_schedule is not None else None)
+            if output_schedule is None or selected:
+                # Close the pending kick exactly once for all requested outputs.
+                psi = ne.evaluate(systema0)
+                halfstepornot = True
+                flags = (output_schedule.diagnostic_flags(selected)
+                         if output_schedule is not None else comp_conserv)
+                cData = None
+                if any(flags.values()):
+                    data = [psi, rho, phisp, distarray, karray2, kvec]
+                    cData = cq.Conserv(data, flags, simulation_parameters,
+                        obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg, max_pos=max_pos)
+                if output_schedule is None:
+                    data = ([None, None, None], rho, psi, phisp, cData)
+                    sv.fdata_save(ti=sample_index, data=data, data_save_obj=data_save_obj,
+                                 resol=resol, physical_time=physical_time)
+                else:
+                    names = [name for name, enabled in flags.items() if enabled]
+                    diagnostics = dict(zip(names, cData)) if cData is not None else {}
+                    output_schedule.save(selected, sample_index, physical_time,
+                                         rho, psi, phisp, diagnostics)
+                count += 1
 
         # Time tracking
         tint = time.time() - tinit
@@ -104,11 +117,21 @@ def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulati
         # Update progress bar
         to.progressbar(i, num_steps-1, bar_length=20, progress_char='#')
 
-    sv.fdata_save(ti=None, data=([None, None, None], None, None, None, None),
-               data_save_obj=data_save_obj, resol=None, end=True)
+    # Intervals can exclude the endpoint; always finish with a synchronized field.
+    if not halfstepornot:
+        psi = ne.evaluate(systema0)
+    if output_schedule is None:
+        sv.fdata_save(ti=None, data=([None, None, None], None, None, None, None),
+                     data_save_obj=data_save_obj, resol=None, end=True)
+    else:
+        output_schedule.close()
 
     print ('\n')
     print("Complete. Total time -> ", ttot)
-    print('save_frames', count, '\n')
+    if output_schedule is None:
+        print('save_frames', count, '\n')
+    else:
+        print('saved samples:', {name: len(stream['writer'].time)
+                                for name, stream in output_schedule.streams.items()})
 
     return rho, phisp

@@ -237,15 +237,40 @@ class Visualization:
                 xlim, ylim, cmapint, interval, array_dataS, nameS, dt):
         """Build the animation for the 2D performance and 1D profile."""
 
+        # Align streams by original sample index, then use local animation positions.
+        streams = [(name, data) for name, data in ((nameL, array_dataL), (nameS, array_dataS)) if name]
+        shared = None
+        for name, data in streams:
+            indices = np.asarray(data['snapshot_index'] if 'snapshot_index' in data else data['t'], dtype=int)
+            shared = indices if shared is None else np.intersect1d(shared, indices)
+        if shared is None or not len(shared):
+            raise ValueError("The requested streams have no common samples")
+        aligned = {}
+        reference_time = None
+        for name, data in streams:
+            indices = np.asarray(data['snapshot_index'] if 'snapshot_index' in data else data['t'], dtype=int)
+            positions = {int(index): pos for pos, index in enumerate(indices)}
+            times = np.asarray(data['time'] if 'time' in data else data['t'] * dt)
+            times = np.array([times[positions[int(index)]] for index in shared])
+            if reference_time is not None and not np.allclose(times, reference_time, rtol=1e-12, atol=1e-12):
+                raise ValueError("Streams have inconsistent physical times")
+            reference_time = times
+            aligned[name] = {f"{name}{pos}": data[f"{name}{int(index)}"] for pos, index in enumerate(shared)}
+            aligned[name]['time'] = times
+        array_dataL = aligned.get(nameL)
+        array_dataS = aligned.get(nameS)
+        if not 0 <= n0 < len(shared):
+            raise ValueError("n0 must be a position in the common sample sequence")
+
         dataL = None
         if nameL:
-            ti = array_dataL['t'] * dt
+            ti = array_dataL['time']
             prof0 = array_dataL[f"{nameL}{n0}"]
             dataL = [prof0, grid[0], ti[n0]]
 
         dataS = None
         if nameS:
-            ti2 = array_dataS['t'] * dt
+            ti2 = array_dataS['time']
             prof20 = array_dataS[f"{nameS}{n0}"]
             dataS = [prof20, ti2[n0], grid[0], grid[1]]
 

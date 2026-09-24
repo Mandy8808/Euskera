@@ -10,3 +10,4 @@ from .background_plots import (
     plotPerf,
 )
 from .video_make import Visualization
+from .selected_output import plot_output

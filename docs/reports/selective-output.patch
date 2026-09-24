@@ -1,0 +1,1383 @@
+--- before/euskera/io/schedule.py
++++ after/euskera/io/schedule.py
+@@ -0,0 +1,108 @@
++"""Validated temporal selections and per-output sampling rules."""
++
++from dataclasses import dataclass, field
++import math
++
++__all__ = ["All", "Last", "TimeRange", "Final", "SaveRule"]
++
++
++@dataclass(frozen=True)
++class All:
++    """Select every eligible sample, including zero."""
++    kind: str = field(default="all", init=False)
++
++
++@dataclass(frozen=True)
++class Last:
++    """Select the last count eligible samples, including the final sample."""
++    count: int
++    kind: str = field(default="last", init=False)
++
++    def __post_init__(self):
++        _positive_integer(self.count, "count")
++
++
++@dataclass(frozen=True)
++class TimeRange:
++    """Select samples in an inclusive physical-time interval."""
++    start: float
++    stop: float
++    kind: str = field(default="range", init=False)
++
++    def __post_init__(self):
++        for value in (self.start, self.stop):
++            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
++                raise ValueError("TimeRange bounds must be finite numbers")
++        if not 0 <= self.start <= self.stop:
++            raise ValueError("TimeRange requires 0 <= start <= stop")
++
++
++@dataclass(frozen=True)
++class Final:
++    """Select only the final sample."""
++    kind: str = field(default="final", init=False)
++
++
++def _positive_integer(value, name):
++    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
++        raise ValueError(f"{name} must be a positive integer")
++
++
++@dataclass
++class SaveRule:
++    """One geometry, variables and temporal selection.
++
++    Diagnostics use variables from DiagnosticsConfig and no orientations.
++    ``every`` subsamples the common calendar before temporal selection; the
++    final sample is always eligible. ``save_initial`` adds sample zero.
++    """
++    geometry: str
++    variables: list[str]
++    orientations: list[str] = field(default_factory=list)
++    selection: object = field(default_factory=All)
++    every: int = 1
++    save_initial: bool = False
++
++    def __post_init__(self):
++        if self.geometry not in ("volume", "plane", "line", "diagnostics"):
++            raise ValueError("Unknown output geometry")
++        allowed = ("Numb_Part", "Energ", "Pi", "Frequency") if self.geometry == "diagnostics" else ("rho", "psi", "phi")
++        if not isinstance(self.variables, (list, tuple)) or not self.variables or any(v not in allowed for v in self.variables):
++            raise ValueError(f"variables must be a nonempty sequence drawn from {allowed}")
++        axes = {"plane": ("xy", "xz", "yz"), "line": ("x", "y", "z")}.get(self.geometry, ())
++        if not isinstance(self.orientations, (list, tuple)) or any(o not in axes for o in self.orientations):
++            raise ValueError("Invalid orientations for geometry")
++        if axes and not self.orientations:
++            raise ValueError("Planes and lines require explicit orientations")
++        if len(set(self.variables)) != len(self.variables) or len(set(self.orientations)) != len(self.orientations):
++            raise ValueError("Duplicate variables or orientations")
++        if isinstance(self.selection, dict):
++            values = dict(self.selection)
++            kind = values.pop("kind", None)
++            types = {"all": All, "last": Last, "range": TimeRange, "final": Final}
++            if kind not in types:
++                raise ValueError("Unknown temporal selection")
++            self.selection = types[kind](**values)
++        if not isinstance(self.selection, (All, Last, TimeRange, Final)):
++            raise TypeError("selection must be All, Last, TimeRange or Final")
++        _positive_integer(self.every, "every")
++        if not isinstance(self.save_initial, bool):
++            raise TypeError("save_initial must be boolean")
++
++    def matches(self, index, total, time, duration):
++        """Evaluate a selection without allocating a full sampling calendar."""
++        if index == 0 and self.save_initial:
++            return True
++        if index % self.every and index != total:
++            return False
++        selection = self.selection
++        if isinstance(selection, All):
++            return True
++        if isinstance(selection, Final):
++            return index == total
++        if isinstance(selection, Last):
++            size = total // self.every + 1 + bool(total % self.every)
++            rank = size - 1 if index == total else index // self.every
++            return rank >= max(0, size - selection.count)
++        tolerance = 8 * math.ulp(max(duration, 1.0))
++        return selection.start - tolerance <= time <= selection.stop + tolerance
+--- before/euskera/io/selected_output.py
++++ after/euskera/io/selected_output.py
+@@ -0,0 +1,123 @@
++"""Write selected spatial outputs and read them with their own coordinates."""
++
++import json
++from pathlib import Path
++import warnings
++import numpy as np
++import h5py
++
++from .schedule import Last
++from .save_data import StoreSolution, _diagnostic_datasets
++
++__all__ = ["read_output"]
++
++
++class OutputSchedule:
++    """Resolve rules to unique streams; overlapping rules form a union."""
++
++    def __init__(self, config, duration, diagnostics):
++        self.config = config
++        self.duration = duration
++        self.total = config.save_number
++        self.streams = {}
++        for rule in config.rules:
++            if isinstance(rule.selection, Last):
++                available = self.total // rule.every + 1 + bool(self.total % rule.every)
++                if rule.selection.count > available:
++                    warnings.warn(f"Last({rule.selection.count}) exceeds {available} available samples; saving all eligible samples", UserWarning)
++            for variable in rule.variables:
++                if rule.geometry == "diagnostics" and not diagnostics.get(variable):
++                    raise ValueError(f"Diagnostic {variable} must also be enabled in DiagnosticsConfig")
++                for orientation in rule.orientations or [None]:
++                    name = (f"save_energies_{variable}" if rule.geometry == "diagnostics" else
++                            "_".join(part for part in (rule.geometry, orientation, variable) if part))
++                    stream = self.streams.setdefault(name, {
++                        "geometry": rule.geometry, "variable": variable,
++                        "orientation": orientation, "rules": [],
++                    })
++                    stream["rules"].append(rule)
++
++    def prepare(self, grid):
++        self.axes = {axis: np.asarray(values).reshape(-1) for axis, values in zip("xyz", grid)}
++        self.center = {axis: int(np.argmin(abs(values))) for axis, values in self.axes.items()}
++        path = Path(self.config.address)
++        path.mkdir(parents=True, exist_ok=True)
++        grid_writer = StoreSolution(str(path), "grid", self.config.format)
++        grid_writer.save_file(list(self.axes.values()), ti=None)
++        grid_writer.close_file("end_grid")
++        metadata = {"schema_version": 1, "streams": {}}
++        for name, stream in self.streams.items():
++            diag = stream["geometry"] == "diagnostics"
++            stream["writer"] = StoreSolution(str(path), name, self.config.format,
++                diagnostic_names=[stream["variable"]] if diag else None)
++            axes = "" if diag else stream["orientation"] or "xyz"
++            metadata["streams"][name] = {
++                "geometry": stream["geometry"], "variable": stream["variable"],
++                "orientation": stream["orientation"], "axes": list(axes),
++                "fixed_coordinates": {} if diag else {
++                    a: float(self.axes[a][self.center[a]]) for a in "xyz" if a not in axes},
++                "fixed_indices": {} if diag else {a: self.center[a] for a in "xyz" if a not in axes},
++                "format": self.config.format,
++            }
++        (path / "output_manifest.json").write_text(json.dumps(metadata, indent=2) + "\n")
++
++    def outputs_at(self, index, time):
++        return {name: stream for name, stream in self.streams.items()
++                if any(rule.matches(index, self.total, time, self.duration) for rule in stream["rules"])}
++
++    @staticmethod
++    def diagnostic_flags(selected):
++        names = {s["variable"] for s in selected.values() if s["geometry"] == "diagnostics"}
++        return {name: name in names for name in ("Numb_Part", "Energ", "Pi", "Ji", "Frequency")}
++
++    def save(self, selected, index, time, rho, psi, phi, diagnostics):
++        fields = {"rho": rho, "psi": psi, "phi": phi}
++        for stream in selected.values():
++            if stream["geometry"] == "diagnostics":
++                value = np.empty(1, dtype=object)
++                value[0] = diagnostics[stream["variable"]]
++            else:
++                varying = stream["orientation"] or "xyz"
++                slices = tuple(slice(None) if a in varying else self.center[a] for a in "xyz")
++                value = fields[stream["variable"]][(Ellipsis,) + slices]
++            stream["writer"].save_file(value, index, physical_time=time)
++
++    def close(self):
++        for name, stream in self.streams.items():
++            stream["writer"].close_file("end_" + name)
++
++
++def read_output(address, name):
++    """Read one selected stream (NPZ/HDF5) with original indices and times.
++
++    Returns metadata, coordinate vectors, time, snapshot_index, and data.
++    Fields are stacked along a leading sample axis. Diagnostics are a mapping
++    of numeric arrays. Only read NPZ diagnostics from trusted simulations:
++    the legacy object-array encoding requires pickle.
++    """
++    path = Path(address)
++    metadata = json.loads((path / "output_manifest.json").read_text())["streams"][name]
++    diag = metadata["geometry"] == "diagnostics"
++    fmt = metadata["format"]
++    filename = path / f"end_{name}.{fmt}"
++    if fmt == "npz":
++        with np.load(filename, allow_pickle=diag) as archive:
++            indices = archive["snapshot_index"].astype(int)
++            times = archive["time"] if "time" in archive else np.empty(0)
++            samples = [archive[f"{name}{i}"] for i in indices]
++        if diag:
++            samples = [_diagnostic_datasets(s, [metadata["variable"]]) for s in samples]
++        with np.load(path / "end_grid.npz") as grid:
++            coordinates = {a: grid[a] for a in metadata["axes"]}
++    else:
++        with h5py.File(filename) as archive:
++            indices = archive["snapshot_index"][:].astype(int)
++            times = archive["time"][:] if "time" in archive else np.empty(0)
++            samples = [({k: v[()] for k, v in archive[f"{name}_{i}"].items()} if diag
++                        else archive[f"{name}_{i}"][()]) for i in indices]
++        with h5py.File(path / "end_grid.hdf5") as grid:
++            coordinates = {a: grid[a][:] for a in metadata["axes"]}
++    data = ({k: np.stack([s[k] for s in samples]) for k in samples[0]} if samples else {}) if diag else (
++        np.stack(samples) if samples else np.empty((0,)))
++    return {**metadata, "coordinates": coordinates, "snapshot_index": indices,
++            "time": times, "data": data}
+--- before/euskera/io/config.py
++++ after/euskera/io/config.py
+@@ -4,0 +5 @@
++from .schedule import SaveRule
+@@ -23,0 +25 @@
++    rules: list[SaveRule] | None = None
+@@ -25,0 +28,8 @@
++        if self.rules is not None:
++            if not isinstance(self.rules, (list, tuple)):
++                raise TypeError("rules must be a sequence of SaveRule objects")
++            self.rules = [SaveRule(**rule) if isinstance(rule, Mapping) else rule for rule in self.rules]
++            if any(not isinstance(rule, SaveRule) for rule in self.rules):
++                raise TypeError("rules must contain SaveRule objects")
++            for rule in self.rules:
++                rule.__post_init__()
+--- before/euskera/io/save_data.py
++++ after/euskera/io/save_data.py
+@@ -224 +224 @@
+-                if self.name == "save_energies":
++                if self.name == "save_energies" or self.name.startswith("save_energies_"):
+--- before/euskera/io/__init__.py
++++ after/euskera/io/__init__.py
+@@ -8,0 +9,4 @@
++
++from euskera.io.schedule import All, Last, TimeRange, Final, SaveRule
++from euskera.io.selected_output import read_output
++__all__ += ["All", "Last", "TimeRange", "Final", "SaveRule", "read_output"]
+--- before/euskera/__init__.py
++++ after/euskera/__init__.py
+@@ -85 +85,4 @@
+-]
+\ No newline at end of file
++]
++from euskera.io.schedule import All, Last, TimeRange, Final, SaveRule
++from euskera.io.selected_output import read_output
++__all__ += ["All", "Last", "TimeRange", "Final", "SaveRule", "read_output"]
+--- before/euskera/evolution/evolve.py
++++ after/euskera/evolution/evolve.py
+@@ -25,0 +26 @@
++from euskera.io.selected_output import OutputSchedule
+@@ -145,0 +147,3 @@
++    output_schedule = (OutputSchedule(output_validated, simulation_parameters["tmax"], comp_conserv)
++                       if output_validated.rules is not None else None)
++
+@@ -206 +210,2 @@
+-    data_save_obj = sv.data_Objgenerator(data_save, address, formt, comp_conserv=comp_conserv)
++    data_save_obj = (sv.data_Objgenerator(data_save, address, formt, comp_conserv=comp_conserv)
++                     if output_schedule is None else {})
+@@ -210 +215,7 @@
+-    sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=0.0)
++    if output_schedule is None:
++        sv.fdata_save(ti=0, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=0.0)
++    else:
++        output_schedule.prepare([xarray[:, 0, 0], yarray[0, :, 0], zarray[0, 0, :]])
++        names = [name for name, enabled in comp_conserv.items() if enabled]
++        output_schedule.save(output_schedule.outputs_at(0, 0.0), 0, 0.0,
++                             rho, psi, phisp, dict(zip(names, cData)))
+@@ -224 +235 @@
+-                        info=info)
++                        info=info, output_schedule=output_schedule)
+--- before/euskera/evolution/evolut_routines.py
++++ after/euskera/evolution/evolut_routines.py
+@@ -25 +25 @@
+-def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulation_parameters, comp_conserv, data_save_obj, info=False):
++def PKP(field_components, fields, param, distDat, num_steps, obj, kvec, simulation_parameters, comp_conserv, data_save_obj, info=False, output_schedule=None):
+@@ -82,7 +82,27 @@
+-        # Save step
+-        if (((i + 1) % its_per_save) == 0) and halfstepornot == False:
+-            # Next if statement ensures that an extra half step is performed at each save point
+-            # psi = ne.evaluate("exp(-1j * 0.5 * ht * phisp) * psi")
+-            psi = ne.evaluate(systema0)
+-            rho = ne.evaluate("sum(rho_i, axis=0)")  # rho = np.sum(rho_i, axis=0)
+-            halfstepornot = True
++        # A common sampling calendar; selection never changes the integration step.
++        if ((i + 1) % its_per_save) == 0:
++            sample_index = (i + 1) // its_per_save
++            physical_time = (i + 1) * ht
++            selected = (output_schedule.outputs_at(sample_index, physical_time)
++                        if output_schedule is not None else None)
++            if output_schedule is None or selected:
++                # Close the pending kick exactly once for all requested outputs.
++                psi = ne.evaluate(systema0)
++                halfstepornot = True
++                flags = (output_schedule.diagnostic_flags(selected)
++                         if output_schedule is not None else comp_conserv)
++                cData = None
++                if any(flags.values()):
++                    data = [psi, rho, phisp, distarray, karray2, kvec]
++                    cData = cq.Conserv(data, flags, simulation_parameters,
++                        obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg, max_pos=max_pos)
++                if output_schedule is None:
++                    data = ([None, None, None], rho, psi, phisp, cData)
++                    sv.fdata_save(ti=sample_index, data=data, data_save_obj=data_save_obj,
++                                 resol=resol, physical_time=physical_time)
++                else:
++                    names = [name for name, enabled in flags.items() if enabled]
++                    diagnostics = dict(zip(names, cData)) if cData is not None else {}
++                    output_schedule.save(selected, sample_index, physical_time,
++                                         rho, psi, phisp, diagnostics)
++                count += 1
+@@ -90,7 +109,0 @@
+-            # Calculate energies and save data
+-            data = [psi, rho, phisp, distarray, karray2, kvec]
+-            cData = cq.Conserv(data, comp_conserv, simulation_parameters, obj2=[fft_psi, ifft_funct], methodEnerg=methodEnerg, max_pos=max_pos)  # method=1
+-            data = ([None, None, None], rho, psi, phisp, cData)
+-            sv.fdata_save(ti=count, data=data, data_save_obj=data_save_obj, resol=resol, end=False, physical_time=(i + 1) * ht)
+-            count += 1
+-
+@@ -107,2 +120,8 @@
+-    sv.fdata_save(ti=None, data=([None, None, None], None, None, None, None),
+-               data_save_obj=data_save_obj, resol=None, end=True)
++    # Intervals can exclude the endpoint; always finish with a synchronized field.
++    if not halfstepornot:
++        psi = ne.evaluate(systema0)
++    if output_schedule is None:
++        sv.fdata_save(ti=None, data=([None, None, None], None, None, None, None),
++                     data_save_obj=data_save_obj, resol=None, end=True)
++    else:
++        output_schedule.close()
+@@ -112 +131,5 @@
+-    print('save_frames', count, '\n')
++    if output_schedule is None:
++        print('save_frames', count, '\n')
++    else:
++        print('saved samples:', {name: len(stream['writer'].time)
++                                for name, stream in output_schedule.streams.items()})
+--- before/euskera/visualization/selected_output.py
++++ after/euskera/visualization/selected_output.py
+@@ -0,0 +1,37 @@
++"""Coordinate-aware plots for selected line and plane streams."""
++
++import numpy as np
++import matplotlib.pyplot as plt
++from euskera.io.selected_output import read_output
++
++__all__ = ["plot_output"]
++
++
++def plot_output(address, name, sample=-1, component=0, ax=None):
++    """Plot a stored line or plane; sample is a position, not a global index.
++
++    For psi, display the modulus of the requested component. The returned
++    Matplotlib axes can be further customized by the caller.
++    """
++    output = read_output(address, name)
++    if output["geometry"] not in ("line", "plane"):
++        raise ValueError("plot_output requires a line or plane stream")
++    if not len(output["time"]):
++        raise ValueError("The selected output contains no samples")
++    values = output["data"][sample]
++    if output["variable"] == "psi":
++        values = np.abs(values[component])
++    if ax is None:
++        _, ax = plt.subplots()
++    axes = output["axes"]
++    coords = output["coordinates"]
++    if len(axes) == 1:
++        ax.plot(coords[axes[0]], values)
++        ax.set_ylabel(f"|psi[{component}]|" if output["variable"] == "psi" else output["variable"])
++    else:
++        artist = ax.pcolormesh(coords[axes[0]], coords[axes[1]], values.T, shading="auto")
++        ax.figure.colorbar(artist, ax=ax)
++        ax.set_ylabel(axes[1])
++    ax.set_xlabel(axes[0])
++    ax.set_title(f"{name}: t={output['time'][sample]:.6g}, sample={output['snapshot_index'][sample]}")
++    return ax
+--- before/euskera/visualization/__init__.py
++++ after/euskera/visualization/__init__.py
+@@ -12,0 +13 @@
++from .selected_output import plot_output
+--- before/euskera/visualization/video_make.py
++++ after/euskera/visualization/video_make.py
+@@ -239,0 +240,25 @@
++        # Align streams by original sample index, then use local animation positions.
++        streams = [(name, data) for name, data in ((nameL, array_dataL), (nameS, array_dataS)) if name]
++        shared = None
++        for name, data in streams:
++            indices = np.asarray(data['snapshot_index'] if 'snapshot_index' in data else data['t'], dtype=int)
++            shared = indices if shared is None else np.intersect1d(shared, indices)
++        if shared is None or not len(shared):
++            raise ValueError("The requested streams have no common samples")
++        aligned = {}
++        reference_time = None
++        for name, data in streams:
++            indices = np.asarray(data['snapshot_index'] if 'snapshot_index' in data else data['t'], dtype=int)
++            positions = {int(index): pos for pos, index in enumerate(indices)}
++            times = np.asarray(data['time'] if 'time' in data else data['t'] * dt)
++            times = np.array([times[positions[int(index)]] for index in shared])
++            if reference_time is not None and not np.allclose(times, reference_time, rtol=1e-12, atol=1e-12):
++                raise ValueError("Streams have inconsistent physical times")
++            reference_time = times
++            aligned[name] = {f"{name}{pos}": data[f"{name}{int(index)}"] for pos, index in enumerate(shared)}
++            aligned[name]['time'] = times
++        array_dataL = aligned.get(nameL)
++        array_dataS = aligned.get(nameS)
++        if not 0 <= n0 < len(shared):
++            raise ValueError("n0 must be a position in the common sample sequence")
++
+@@ -242 +267 @@
+-            ti = array_dataL['t'] * dt
++            ti = array_dataL['time']
+@@ -248 +273 @@
+-            ti2 = array_dataS['t'] * dt
++            ti2 = array_dataS['time']
+--- before/tests/test_output_rules.py
++++ after/tests/test_output_rules.py
+@@ -0,0 +1,121 @@
++"""Spatial and temporal selection must preserve physical samples."""
++import json
++import numpy as np
++import pytest
++import euskera
++from euskera import All, Last, Final, TimeRange, SaveRule, OutputConfig, read_output
++from euskera.io.selected_output import OutputSchedule
++
++
++@pytest.mark.parametrize('fmt', ['npz', 'hdf5'])
++def test_spatial_cuts_and_independent_times(tmp_path, fmt):
++    axes = [np.array([-2., -.1, 1.]), np.array([-1., .2, 3.]), np.array([-3., -.2, 2.])]
++    fields = np.arange(27).reshape(3, 3, 3)
++    psi = np.stack([fields + 1j, 2*fields - 1j])
++    rules = [SaveRule('plane', ['rho', 'psi', 'phi'], ['xy', 'xz', 'yz']),
++             SaveRule('line', ['rho', 'psi', 'phi'], ['x', 'y', 'z']),
++             SaveRule('volume', ['rho', 'psi', 'phi'], selection=Last(2))]
++    schedule = OutputSchedule(OutputConfig(address=str(tmp_path), format=fmt, save_number=4, rules=rules), 1., {})
++    schedule.prepare(axes)
++    for j in range(5):
++        schedule.save(schedule.outputs_at(j, j/4), j, j/4, fields+j, psi+j, -fields+j, {})
++    schedule.close()
++    for variable, field in [('rho', fields), ('psi', psi), ('phi', -fields)]:
++        for geometry, orientations in [('plane', ['xy','xz','yz']), ('line', ['x','y','z']), ('volume', [None])]:
++            for orientation in orientations:
++                name = '_'.join(v for v in [geometry, orientation, variable] if v)
++                result = read_output(tmp_path, name)
++                expected_indices = [3,4] if geometry == 'volume' else list(range(5))
++                np.testing.assert_array_equal(result['snapshot_index'], expected_indices)
++                np.testing.assert_allclose(result['time'], np.array(expected_indices)/4)
++                varying = orientation or 'xyz'
++                slices = (Ellipsis,) + tuple(slice(None) if a in varying else 1 for a in 'xyz')
++                for index, value in zip(expected_indices, result['data']):
++                    np.testing.assert_array_equal(value, (field+index)[slices])
++                assert result['axes'] == list(varying)
++
++
++def test_selection_roundtrip_and_validation():
++    for selection, expected in [(All(), [0,1,2,3,4]), (Last(2), [3,4]), (Final(), [4]), (TimeRange(.25,.75), [1,2,3])]:
++        config = OutputConfig(rules=[SaveRule('volume', ['psi'], selection=selection)])
++        rule = OutputConfig.from_legacy(config.to_dict()).rules[0]
++        assert [i for i in range(5) if rule.matches(i,4,i/4,1)] == expected
++    rule = SaveRule('volume', ['rho'], selection=Last(2), every=3, save_initial=True)
++    assert [i for i in range(11) if rule.matches(i,10,i/10,1)] == [0,9,10]
++    for kwargs in [dict(geometry='plane', variables=['rho']), dict(geometry='line',variables=['phi'],orientations=['xy']), dict(geometry='volume',variables=['bad'])]:
++        with pytest.raises(ValueError): SaveRule(**kwargs)
++    with pytest.raises(ValueError): Last(0)
++    with pytest.raises(ValueError): TimeRange(2,1)
++    with pytest.raises(ValueError): OutputSchedule(OutputConfig(rules=[SaveRule('diagnostics',['Energ'])]),1,{'Energ':False})
++
++
++def run_model(path, fmt, rules):
++    euskera.evolve({'gaussian_function':[{'positions_gaussiana':[.2,0.,0.], 'amplitude':1., 'sigma':[.5,.7,.9]}]},
++        evolution_config=euskera.EvolutionConfig(gridlength=4.,resol=4,tmax=.04,lambda_value=.2),
++        output_config=OutputConfig(address=str(path),format=fmt,save_number=4,rules=rules),
++        diagnostics_config=euskera.DiagnosticsConfig(Numb_Part=True,Energ=True,Pi=True,Frequency=True))
++
++
++@pytest.mark.parametrize('fmt', ['npz','hdf5'])
++def test_sparse_evolution_matches_full_and_diagnostics(tmp_path, fmt):
++    all_rules = [SaveRule('volume',['rho','psi','phi']), SaveRule('diagnostics',['Numb_Part','Energ','Pi','Frequency'])]
++    run_model(tmp_path/'all',fmt,all_rules)
++    sparse_rules = [SaveRule('volume',['rho','psi','phi'],selection=Last(2)),
++                    SaveRule('diagnostics',['Numb_Part','Energ','Pi','Frequency'],selection=Last(2))]
++    run_model(tmp_path/'sparse',fmt,sparse_rules)
++    for variable in ['rho','psi','phi']:
++        full = read_output(tmp_path/'all',f'volume_{variable}')
++        sparse = read_output(tmp_path/'sparse',f'volume_{variable}')
++        np.testing.assert_array_equal(sparse['snapshot_index'], [3,4])
++        np.testing.assert_allclose(sparse['data'],full['data'][-2:],rtol=1e-12,atol=1e-12)
++    for diagnostic in ['Numb_Part','Energ','Pi','Frequency']:
++        full = read_output(tmp_path/'all',f'save_energies_{diagnostic}')
++        sparse = read_output(tmp_path/'sparse',f'save_energies_{diagnostic}')
++        for name in full['data']:
++            np.testing.assert_allclose(sparse['data'][name],full['data'][name][-2:],rtol=1e-11,atol=1e-11)
++    # Diagnostic-only sampling between sparse field outputs also keeps the same field.
++    run_model(tmp_path/'mixed',fmt,[SaveRule('volume',['psi'],selection=Last(2)), all_rules[1]])
++    np.testing.assert_allclose(read_output(tmp_path/'mixed','volume_psi')['data'],read_output(tmp_path/'all','volume_psi')['data'][-2:],atol=1e-12)
++
++
++def test_empty_window_and_overlapping_rules(tmp_path):
++    rules=[SaveRule('volume',['rho'],selection=TimeRange(2,3)),
++           SaveRule('line',['rho'],['z']), SaveRule('line',['rho'],['z'],selection=Final())]
++    run_model(tmp_path,'npz',rules)
++    assert read_output(tmp_path,'volume_rho')['data'].size == 0
++    assert len(read_output(tmp_path,'line_z_rho')['time']) == 5
++
++
++def test_plot_uses_orientation_and_physical_time(tmp_path):
++    import matplotlib.pyplot as plt
++    from euskera.visualization import plot_output
++    run_model(tmp_path, 'npz', [SaveRule('plane',['phi'],['yz'],selection=Final()),
++                              SaveRule('line',['psi'],['z'],selection=Final())])
++    ax = plot_output(tmp_path, 'plane_yz_phi')
++    assert ax.get_xlabel() == 'y' and ax.get_ylabel() == 'z'
++    assert 'sample=4' in ax.get_title()
++    ax2 = plot_output(tmp_path, 'line_z_psi')
++    assert ax2.get_xlabel() == 'z'
++    plt.close('all')
++
++
++def test_animation_aligns_sparse_streams(monkeypatch):
++    from euskera.visualization.video_make import Visualization
++    from euskera.visualization import video_make
++    view = object.__new__(Visualization)
++    view.fig = object()
++    captured = {}
++    def draw(dataS, dataL, *args):
++        captured['line'] = dataL
++        captured['plane'] = dataS
++        return None, None, None
++    view.imagshow02D = draw
++    monkeypatch.setattr(video_make.animation, 'FuncAnimation', lambda *a, **kw: kw)
++    line = {'snapshot_index':np.array([0,2,4]), 'time':np.array([0.,.2,.4]),
++            'line0':np.zeros(3), 'line2':np.ones(3), 'line4':np.ones(3)*2}
++    plane = {'snapshot_index':np.array([3,4]), 'time':np.array([.3,.4]),
++             'plane3':np.zeros((3,3)), 'plane4':np.ones((3,3))}
++    result = view.fplot2D(0,[np.arange(3),np.arange(3)],line,'line','density',(-1,1),(-1,1),None,50,plane,'plane',999)
++    assert list(result['frames']) == [0]
++    assert captured['line'][2] == captured['plane'][1] == .4
++    np.testing.assert_array_equal(captured['line'][0], line['line4'])
+--- before/docs/selective-output.md
++++ after/docs/selective-output.md
+@@ -0,0 +1,110 @@
++# Selective simulation output
++
++Output rules select **variables, geometry, orientation, and time** before evolution begins. The simulation remains three-dimensional: saving a plane does not change the equations or the integration grid.
++
++## Example: complete plane histories and the last 100 volumes
++
++```python
++from euskera import OutputConfig, SaveRule, All, Last, Final, TimeRange
++
++output = OutputConfig(
++    address="Data/selective_run",
++    format="hdf5",  # "npz" is also supported.
++    save_number=1000,
++    rules=[
++        SaveRule("plane", ["rho", "psi", "phi"], ["xy", "xz", "yz"]),
++        SaveRule("line", ["rho", "psi", "phi"], ["x", "y", "z"]),
++        SaveRule("volume", ["rho", "psi", "phi"], selection=Last(100)),
++        SaveRule("diagnostics", ["Numb_Part", "Energ"], every=10),
++    ],
++)
++# evolve(model_parameters, output_config=output, ...)
++```
++
++`rules=None` preserves the existing `data_save` behavior. An explicit rule list replaces `data_save`, including its defaults; `rules=[]` saves only the grid and metadata. Variables in one rule share its selection. Use separate rules for different time selections. Overlapping rules for the same output are combined: each sample is written only once.
++
++Requested diagnostics must also be enabled in `DiagnosticsConfig`. Particle number and energy are enabled by default; `Pi` and `Frequency` are not. `Ji` is not implemented yet.
++
++## Calendar and selections
++
++`save_number=N` defines N intervals and N+1 candidate samples, numbered 0 through N. A sample does not necessarily correspond to one integration step. Global indices and physical times are preserved even when an output starts late.
++
++| Selection | Result |
++| --- | --- |
++| `All()` (default) | All eligible samples, including the initial sample |
++| `Last(100)` | The last 100 eligible samples, including the final sample |
++| `Final()` | Only the final sample |
++| `TimeRange(start, stop)` | Samples in the closed physical-time interval [start, stop] |
++
++`every=k` first selects indices 0, k, 2k, ... and adds N if it is not a multiple of k. The temporal selection is then applied. Thus, `Last(100), every=2` keeps the last 100 samples of that reduced calendar. If more samples are requested than are available, all eligible samples are saved and a warning is emitted. An interval containing no samples produces an empty output readable with `read_output`.
++
++`save_initial=True` belongs to **each SaveRule**: it adds sample 0 even if it falls outside the temporal selection. It never removes samples: combined with `Last(100)`, it can produce 101 samples. Its default value, `False`, means that zero is not added outside the selection; `All()` still includes zero. The grid and metadata are saved even when no rule selects zero.
++
++With `save_number=1000`, `Last(100)`, and `every=1`, the indices are 901–1000. To save only this interval for every field output, apply `Last(100)` to the line, plane, and volume rules. Diagnostics can still use `All()`.
++
++The time step remains fixed. The existing `dtime` adjustment is preserved: `save_number` contributes to the total integration-step count. Changing only the rules does not change the time step; changing `save_number` can. Adaptive termination with rolling retention of the last frames is not supported here.
++
++## Orientations, variables, and coordinates
++
++| Geometry | Orientation | Slice |
++| --- | --- | --- |
++| `plane` | `xy` | z nearest to 0 |
++| `plane` | `xz` | y nearest to 0 |
++| `plane` | `yz` | x nearest to 0 |
++| `line` | `x` | y and z nearest to 0 |
++| `line` | `y` | x and z nearest to 0 |
++| `line` | `z` | x and y nearest to 0 |
++| `volume` | No orientations | Full volume |
++
++`rho`, `psi`, and `phi` support every geometry. All complex components of `psi` are retained. Each fixed coordinate uses the grid node nearest to zero; ties use the first index. `output_manifest.json` records the actual indices and positions of the slices. Spatial axes retain x, y, z order: for example, a `yz` plane has y, z dimensions, preceded by the component dimension for `psi`.
++
++## Diagnostics and the potential half-step
++
++Keeping particle number and energy throughout evolution is recommended. Their series require little storage, although energy and momentum can be expensive to compute. `every` reduces that cost. `Frequency` saves complex field samples for subsequent analysis; it is not a conserved quantity. For spectral analysis, choose a uniform calendar: if `every` does not divide N, the last interval can be shorter.
++
++Each diagnostic has its own output: `save_energies_Numb_Part`, `save_energies_Energ`, `save_energies_Pi`, and `save_energies_Frequency`. They can share a rule or use independent calendars. `Conserv` is called once per sampling instant for the union of requested diagnostics.
++
++When no sample is needed, the method combines the final potential half-step with the initial half-step of the next iteration. If any rule requests fields or diagnostics, it completes the pending half-step **once**, obtains all requested outputs, and starts the next iteration with a half-step. This uniform closure also applies when only `rho` or `phi` is requested. Any pending half-step is completed at termination, even when the selection excludes the endpoint. Numerical comparisons between selections allow for rounding differences.
++
++Enabled initial diagnostics are still computed to validate the initial state, even when they are not written. All evolution FFTs and potential updates remain necessary before a final output window; the savings come from omitted output extraction, writes, and diagnostic calculations.
++
++## Reading and visualization
++
++```python
++from euskera import read_output
++from euskera.visualization import plot_output
++
++volume = read_output("Data/selective_run", "volume_psi")
++print(volume["snapshot_index"], volume["time"])
++# volume["data"]: (samples, components, nx, ny, nz)
++
++plane = read_output("Data/selective_run", "plane_yz_phi")
++print(plane["coordinates"], plane["fixed_coordinates"])
++plot_output("Data/selective_run", "plane_yz_phi", sample=-1)
++plot_output("Data/selective_run", "line_z_psi", sample=-1, component=0)
++
++energy = read_output("Data/selective_run", "save_energies_Energ")
++print(energy["time"], energy["data"]["energy"])
++```
++
++`read_output` supports NPZ and HDF5 and loads one complete output into memory. For large volumes, access individual samples directly in HDF5. Fields are stacked along the sample axis; diagnostics are returned as a dictionary of numeric arrays. NPZ retains the existing object encoding for diagnostics: only open files from trusted sources. HDF5 uses numeric datasets.
++
++`plot_output` draws lines and planes using their actual coordinates and times. `sample` is a position within the output (−1 means the last sample), not a global index. For `psi`, it displays the modulus of the selected component. Existing files continue to use the existing readers. The existing animation now intersects output indices and uses physical times when available; for new slices, `plot_output` avoids manual axis specification.
++
++The formats still use per-sample files during execution and `end_...` archives at closure. Use a new directory for each run; resuming into existing results is not implemented.
++
++## Backward compatibility
++
++The existing `salva_data_update` argument and `OutputConfig(data_save=...)` remain supported. `rules` defaults to `None`, so old calls use `data_Objgenerator` and `fdata_save`, retaining existing filenames, the initial frame, and the common saving cadence. Legacy planes remain central xy slices and legacy lines remain central x slices.
++
++When `rules` is an explicit list, `OutputSchedule` handles output instead. `data_save` remains a validated configuration field but does not choose outputs in that mode. The two output mechanisms do not both write results. Passing `rules=[]` is intentionally different from omitting rules: it requests no field or diagnostic outputs.
++
++If both `salva_data_update` and `output_config` are passed, the latter takes precedence, as before. The notebook switch `USE_SELECTIVE_OUTPUT` is only an example convenience; it is not an argument to `evolve`. Setting it to `False` passes `output_config=None` and preserves the existing notebook configuration.
++
++New selected outputs use explicit names such as `plane_yz_phi` and require `read_output` or direct access to their files; backward compatibility does not mean that existing analysis code automatically understands the new filenames.
++
++## Examples and verification
++
++The [selective_output.ipynb](../examples/workflows/selective_output.ipynb) notebook executes a small case, compares a plane with its volume slice, reads energy, and plots outputs. Simulation notebooks include an optional section before evolution; they initially retain the old mode so their existing analysis cells continue to work.
++
++Tests cover both formats, all orientations and variables, complex components, independent times, empty and overlapping selections, and numerical equivalence between complete and partial output.
+--- before/docs/simulations.md
++++ after/docs/simulations.md
+@@ -154,0 +155,4 @@
++
++## Output by variable, geometry, and time
++
++See [selective output](selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.
+--- before/docs/api.md
++++ after/docs/api.md
+@@ -176,0 +177,4 @@
++
++## Output by variable, geometry, and time
++
++See [selective output](selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.
+--- before/docs/visualization.md
++++ after/docs/visualization.md
+@@ -27,0 +28,4 @@
++
++## Output by variable, geometry, and time
++
++See [selective output](selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.
+--- before/docs/workflows/simulation.md
++++ after/docs/workflows/simulation.md
+@@ -48,0 +49,4 @@
++
++## Output by variable, geometry, and time
++
++See [selective output](../selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.
+--- before/docs/package-map.md
++++ after/docs/package-map.md
+@@ -54 +54 @@
+-      - [`evolve`](../euskera/evolution/evolve.py#L33)
++      - [`evolve`](../euskera/evolution/evolve.py#L34)
+@@ -60 +60 @@
+-      - [`OutputConfig`](../euskera/io/config.py#L18)
++      - [`OutputConfig`](../euskera/io/config.py#L19)
+@@ -73,0 +74,8 @@
++    - [`euskera/io/schedule.py`](../euskera/io/schedule.py)
++      - [`All`](../euskera/io/schedule.py#L10)
++      - [`Last`](../euskera/io/schedule.py#L16)
++      - [`TimeRange`](../euskera/io/schedule.py#L26)
++      - [`Final`](../euskera/io/schedule.py#L41)
++      - [`SaveRule`](../euskera/io/schedule.py#L52)
++    - [`euskera/io/selected_output.py`](../euskera/io/selected_output.py)
++      - [`read_output`](../euskera/io/selected_output.py#L90)
+@@ -122,5 +130,5 @@
+-      - [`selfinterCondensateE`](../euskera/observables/simulation_conserv_quant.py#L151)
+-      - [`selfinterFieldE`](../euskera/observables/simulation_conserv_quant.py#L168)
+-      - [`kintE`](../euskera/observables/simulation_conserv_quant.py#L181)
+-      - [`Pi`](../euskera/observables/simulation_conserv_quant.py#L212)
+-      - [`psiData`](../euskera/observables/simulation_conserv_quant.py#L252)
++      - [`selfinterCondensateE`](../euskera/observables/simulation_conserv_quant.py#L166)
++      - [`selfinterFieldE`](../euskera/observables/simulation_conserv_quant.py#L183)
++      - [`kintE`](../euskera/observables/simulation_conserv_quant.py#L196)
++      - [`Pi`](../euskera/observables/simulation_conserv_quant.py#L227)
++      - [`psiData`](../euskera/observables/simulation_conserv_quant.py#L267)
+@@ -180,0 +189,2 @@
++    - [`euskera/visualization/selected_output.py`](../euskera/visualization/selected_output.py)
++      - [`plot_output`](../euskera/visualization/selected_output.py#L10)
+--- before/README.md
++++ after/README.md
+@@ -57,0 +58,2 @@
++
++See the [selective output guide](docs/selective-output.md) to retain planes and lines throughout evolution while saving volumes only in a final window.
+--- before/CHANGELOG.md
++++ after/CHANGELOG.md
+@@ -35,0 +36,7 @@
++
++## Selective output (unreleased)
++
++- Temporal rules by variable and geometry; three planes and axes for rho, psi, and phi.
++- Independent diagnostic calendars, potential half-step synchronization, and preserved global indices.
++- NPZ/HDF5 reading and plots with coordinates, orientation, and physical time; data_save compatibility.
++- Selective output guide and notebooks, numerical tests, and a change report.
+--- before/examples/workflows/selective_output.ipynb
++++ after/examples/workflows/selective_output.ipynb
+@@ -0,0 +1,119 @@
++{
++ "cells": [
++  {
++   "cell_type": "markdown",
++   "id": "intro",
++   "metadata": {},
++   "source": [
++    "# Selective output: complete plane histories and final volumes\n",
++    "\n",
++    "A small, self-contained example. It retains all three perspectives and axes, all field variables, and diagnostics. The last two 3D samples match their plane slices. See [the guide](../../docs/selective-output.md).\n"
++   ]
++  },
++  {
++   "cell_type": "code",
++   "id": "setup",
++   "metadata": {},
++   "source": [
++    "import os\n",
++    "import tempfile\n",
++    "from pathlib import Path\n",
++    "import numpy as np\n",
++    "import matplotlib.pyplot as plt\n",
++    "import euskera\n",
++    "from euskera import OutputConfig, SaveRule, All, Last, Final, TimeRange, read_output\n",
++    "from euskera.visualization import plot_output\n",
++    "\n",
++    "# A new directory prevents mixing results from different runs.\n",
++    "base = Path(os.environ.get(\"EUSKERA_EXAMPLE_OUTPUT\", tempfile.gettempdir()))\n",
++    "base.mkdir(parents=True, exist_ok=True)\n",
++    "run = Path(tempfile.mkdtemp(prefix=\"euskera-selective-\", dir=base))\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
++   "id": "run",
++   "metadata": {},
++   "source": [
++    "model = {\"gaussian_function\": [{\"amplitude\": 1.0, \"sigma\": [0.5, 0.7, 0.9],\n",
++    "                                \"positions_gaussiana\": [0.2, 0.0, 0.0]}]}\n",
++    "output = OutputConfig(address=str(run), format=\"hdf5\", save_number=4, rules=[\n",
++    "    SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "    SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "    SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(2)),\n",
++    "    SaveRule(\"diagnostics\", [\"Numb_Part\", \"Energ\"]),\n",
++    "])\n",
++    "euskera.evolve(model, evolution_config={\"resol\": 8, \"gridlength\": 4.0, \"tmax\": 0.04},\n",
++    "               output_config=output)\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
++   "id": "verify",
++   "metadata": {},
++   "source": [
++    "plane = read_output(run, \"plane_yz_rho\")\n",
++    "volume = read_output(run, \"volume_rho\")\n",
++    "assert plane[\"snapshot_index\"].tolist() == [0, 1, 2, 3, 4]\n",
++    "assert volume[\"snapshot_index\"].tolist() == [3, 4]\n",
++    "ix = plane[\"fixed_indices\"][\"x\"]\n",
++    "np.testing.assert_allclose(volume[\"data\"][:, ix, :, :], plane[\"data\"][-2:])\n",
++    "np.testing.assert_allclose(volume[\"time\"], plane[\"time\"][-2:])\n",
++    "print(\"Planes:\", plane[\"time\"], \"Volumes:\", volume[\"time\"])\n",
++    "energy = read_output(run, \"save_energies_Energ\")\n",
++    "plt.plot(energy[\"time\"], energy[\"data\"][\"energy\"], \"o-\")\n",
++    "plt.xlabel(\"Time\")\n",
++    "plt.ylabel(\"Energy\")\n",
++    "plt.show()\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
++   "id": "plot",
++   "metadata": {},
++   "source": [
++    "plot_output(run, \"plane_yz_phi\")\n",
++    "plot_output(run, \"line_z_psi\", component=0)\n",
++    "plt.show()\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "markdown",
++   "id": "variants",
++   "metadata": {},
++   "source": [
++    "## Variants to configure before running\n",
++    "\n",
++    "- Use `Last(100)` with `save_number=1000` to select samples 901–1000.\n",
++    "- Apply `Last(100)` to lines and planes too if only the final window is needed.\n",
++    "- `Final()` retains only the final state.\n",
++    "- `TimeRange(0.01, 0.03)` retains samples within that interval.\n",
++    "- `every=2` reduces a rule’s calendar before applying its selection.\n",
++    "- `save_initial=True` adds frame 0 to that rule. The grid is always saved.\n",
++    "- Diagnostics can keep `All()` even when every field uses `Last`.\n",
++    "- For NPZ, change only `format`; reading and plotting work the same way.\n"
++   ]
++  }
++ ],
++ "metadata": {
++  "kernelspec": {
++   "display_name": "Python 3",
++   "language": "python",
++   "name": "python3"
++  },
++  "language_info": {
++   "name": "python",
++   "version": "3.11"
++  }
++ },
++ "nbformat": 4,
++ "nbformat_minor": 5
++}
+--- before/examples/simulations/example_computing_oscilation_soliton_frequency.ipynb
++++ after/examples/simulations/example_computing_oscilation_soliton_frequency.ipynb
+@@ -569,0 +570,10 @@
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-reading",
++   "metadata": {},
++   "source": [
++    "## Output windows and additional orientations\n",
++    "\n",
++    "For results generated with `SaveRule`, see [selective output](../../docs/selective-output.md). `read_output` returns each output’s own times; do not assume that the first element is frame 0 or that every output has the same length. `plot_output` supports xy/xz/yz planes and x/y/z lines for rho, psi, and phi. The [executable notebook](../workflows/selective_output.ipynb) demonstrates their use.\n"
++   ]
+--- before/examples/simulations/example_simulation_colision_proca_radial_linear.ipynb
++++ after/examples/simulations/example_simulation_colision_proca_radial_linear.ipynb
+@@ -463,0 +464,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-17",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -467,0 +478,28 @@
++   "id": "selective-config-17",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -526,0 +565 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_ell_boson.ipynb
++++ after/examples/simulations/example_simulation_ell_boson.ipynb
+@@ -395,0 +396,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-15",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -399,0 +410,28 @@
++   "id": "selective-config-15",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -458,0 +497 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_gaussiana.ipynb
++++ after/examples/simulations/example_simulation_gaussiana.ipynb
+@@ -180,0 +181,10 @@
++   "cell_type": "markdown",
++   "id": "selective-note-9",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
++   ]
++  },
++  {
+@@ -181,0 +192,28 @@
++   "id": "selective-config-9",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -239,0 +278 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_multifrequency.ipynb
++++ after/examples/simulations/example_simulation_multifrequency.ipynb
+@@ -405,0 +406,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-15",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -409,0 +420,28 @@
++   "id": "selective-config-15",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -434,0 +473 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_proca_circular.ipynb
++++ after/examples/simulations/example_simulation_proca_circular.ipynb
+@@ -381,0 +382,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-14",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -385,0 +396,28 @@
++   "id": "selective-config-14",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -410,0 +449 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_proca_linear.ipynb
++++ after/examples/simulations/example_simulation_proca_linear.ipynb
+@@ -397,0 +398,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-16",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -401,0 +412,28 @@
++   "id": "selective-config-16",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -426,0 +465 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_proca_radial.ipynb
++++ after/examples/simulations/example_simulation_proca_radial.ipynb
+@@ -381,0 +382,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-14",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -385,0 +396,28 @@
++   "id": "selective-config-14",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -410,0 +449 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_soliton_gaussiana.ipynb
++++ after/examples/simulations/example_simulation_soliton_gaussiana.ipynb
+@@ -379,0 +380,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-15",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -383,0 +394,28 @@
++   "id": "selective-config-15",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -441,0 +480 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_soliton_halo.ipynb
++++ after/examples/simulations/example_simulation_soliton_halo.ipynb
+@@ -397,0 +398,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-15",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -401,0 +412,28 @@
++   "id": "selective-config-15",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -469,0 +508 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_simulation_soliton_lam_0.ipynb
++++ after/examples/simulations/example_simulation_soliton_lam_0.ipynb
+@@ -395,0 +396,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-note-15",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
+@@ -399,0 +410,23 @@
++   "id": "selective-config-15",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
+@@ -400,0 +434,5 @@
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
++   "execution_count": null,
+@@ -408,0 +447 @@
++    "           output_config=selective_output,\n",
+@@ -644,0 +684,10 @@
++   "cell_type": "markdown",
++   "id": "selective-note-22",
++   "metadata": {},
++   "source": [
++    "## Selective output (optional)\n",
++    "\n",
++    "Enable `USE_SELECTIVE_OUTPUT` to save all three planes and axes of rho, psi, and phi, but only the last volumes. The existing mode remains active by default. Rules replace `data_save`; use `read_output` and `plot_output` to analyze the new names. Enabled diagnostics are retained throughout evolution. Use a new directory for each run. See [the guide](../../docs/selective-output.md) and the [executable example](../workflows/selective_output.ipynb).\n"
++   ]
++  },
++  {
+@@ -645,0 +695,28 @@
++   "id": "selective-config-22",
++   "metadata": {},
++   "source": [
++    "from euskera import OutputConfig, SaveRule, Last\n",
++    "\n",
++    "USE_SELECTIVE_OUTPUT = False\n",
++    "selective_output = None\n",
++    "if USE_SELECTIVE_OUTPUT:\n",
++    "    diagnostic_names = [name for name in (\"Numb_Part\", \"Energ\", \"Pi\", \"Frequency\")\n",
++    "                        if comp_conserv.get(name, name in (\"Numb_Part\", \"Energ\"))]\n",
++    "    output_rules = [\n",
++    "        SaveRule(\"plane\", [\"rho\", \"psi\", \"phi\"], [\"xy\", \"xz\", \"yz\"]),\n",
++    "        SaveRule(\"line\", [\"rho\", \"psi\", \"phi\"], [\"x\", \"y\", \"z\"]),\n",
++    "        SaveRule(\"volume\", [\"rho\", \"psi\", \"phi\"], selection=Last(min(100, salva_data[\"save_number\"] + 1))),\n",
++    "    ]\n",
++    "    if diagnostic_names:\n",
++    "        output_rules.append(SaveRule(\"diagnostics\", diagnostic_names))\n",
++    "    selective_output = OutputConfig(\n",
++    "        address=salva_data[\"address\"] + \"_selective\",\n",
++    "        format=salva_data.get(\"format\", \"npz\"),\n",
++    "        save_number=salva_data[\"save_number\"], rules=output_rules,\n",
++    "    )\n"
++   ],
++   "execution_count": null,
++   "outputs": []
++  },
++  {
++   "cell_type": "code",
+@@ -704,0 +782 @@
++    "           output_config=selective_output,\n",
+--- before/examples/simulations/example_visualizing_simulation_data.ipynb
++++ after/examples/simulations/example_visualizing_simulation_data.ipynb
+@@ -1351222,0 +1351223,10 @@
++   ]
++  },
++  {
++   "cell_type": "markdown",
++   "id": "selective-reading",
++   "metadata": {},
++   "source": [
++    "## Output windows and additional orientations\n",
++    "\n",
++    "For results generated with `SaveRule`, see [selective output](../../docs/selective-output.md). `read_output` returns each output’s own times; do not assume that the first element is frame 0 or that every output has the same length. `plot_output` supports xy/xz/yz planes and x/y/z lines for rho, psi, and phi. The [executable notebook](../workflows/selective_output.ipynb) demonstrates their use.\n"

@@ -41,7 +41,7 @@ to zero. With `active=None` (the default), the full system is solved; zeros in
 the right-hand side never remove an equation automatically. Convergence still
 checks all selected boundary conditions.
 
-The [background notebook](../../examples/backgrounds/example_making_initial_profile.ipynb) carries central amplitudes
+The [multifrequency background notebook](../../examples/backgrounds/example_making_initial_profile_multifrequency.ipynb) carries central amplitudes
 from shooting into the fitting loop. With zero initial field derivatives, it
 derives the mask once per configuration:
 

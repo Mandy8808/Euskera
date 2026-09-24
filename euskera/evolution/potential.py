@@ -78,7 +78,7 @@ def Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=
         # Initialize potential field
         if pyfftwOpt:
             phisp = pyfftw.zeros_aligned((field_components, resol, resol, resol), dtype='float64')
-            irfft_phi = pyfftw.builders.irfftn(phik, axes=(0, 1, 2), threads=num_threads)   # Return a pyfftw.FFTW object representing an n-D real inverse FFT.
+            irfft_phi = pyfftw.builders.irfftn(phik, s=rho.shape, axes=(0, 1, 2), threads=num_threads)   # Return a pyfftw.FFTW object representing an n-D real inverse FFT.
             phisp = irfft_phi(phik)   # Compute the N-dimensional discrete inverse FFT for real inputphik (i.e.  F^{-1} (-/k^2) F 4pi |psi(\vec{x}, t_i)|^2)
         else:
             phisp = np.fft.irfftn(phik, s=rho.shape, axes=(0, 1, 2))
@@ -86,9 +86,13 @@ def Upotential(field_components, rho_i, distarray, rkarray2, num_threads, cmass=
         phisp = irfft_phi(phik)
 
     # Adjust potential using central mass, avoiding division by zero
-    phisp = ne.evaluate("phisp - (cmass / distarray)",
-                        global_dict={'distarray': np.where(distarray == 0, np.inf, distarray),
-                                     'cmass': cmass, 'phisp': phisp})
+    if cmass != 0:
+        radio = np.where(distarray == 0, np.inf, distarray)
+        phisp = ne.evaluate("phisp - cmass / radio",
+                            local_dict={"phisp": phisp, "cmass": cmass, "radio": radio,},)
+    # phisp = ne.evaluate("phisp - (cmass / distarray)",
+    #                    global_dict={'distarray': np.where(distarray == 0, np.inf, distarray),
+    #                                 'cmass': cmass, 'phisp': phisp})
 
     fft_objects = (rfft_rho, irfft_phi) if pyfftwOpt else (None, None)
     return (phisp, rho) if obj is not None else (phisp, rho, fft_objects)

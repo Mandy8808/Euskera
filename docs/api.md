@@ -174,3 +174,7 @@ output. `t0` must be zero; `tmax` specifies duration. `OutputConfig` accepts
 `copy_profiles: bool = False`. `StoreSolution.save_file(data, ti,
 physical_time=None)` and `fdata_save(..., physical_time=None)` accept physical
 timestamps separately from counters. See [simulations](simulations.md).
+
+## Output by variable, geometry, and time
+
+See [selective output](selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.
