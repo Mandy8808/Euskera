@@ -18,7 +18,8 @@ def test_invalid_numerics_do_not_create_output(tmp_path,typed,values):
         euskera.evolve(MODEL,salva_data_update={'address':str(target)},**kwargs)
     assert not target.exists()
 
-@pytest.mark.parametrize('output',[{'format':'csv'},{'data_save':{'save_typo':True}}])
+@pytest.mark.parametrize('output',[{'format':'csv'},{'data_save':{'save_typo':True}},
+    {'cleanup_policy':'invalid'}, {'consolidation_batch_size':0}])
 def test_invalid_output_has_no_files(tmp_path,output):
     target=tmp_path/'absent'
     with pytest.raises(ValueError):
@@ -33,9 +34,13 @@ def test_invalid_model_before_output(tmp_path,sigma):
     assert not target.exists()
 
 @pytest.mark.parametrize('fmt',['npz','hdf5'])
-def test_saved_physical_times_and_metadata(tmp_path,fmt):
-    euskera.evolve(MODEL,evolution_config={'resol':4,'gridlength':4.,'tmax':.2},
-                  output_config=OutputConfig(address=str(tmp_path),format=fmt,save_number=2))
+@pytest.mark.parametrize('policy',['after_success','incremental'])
+@pytest.mark.parametrize('typed',[True,False])
+def test_saved_physical_times_and_metadata(tmp_path,fmt,policy,typed):
+    output = OutputConfig(address=str(tmp_path), format=fmt, save_number=2,
+                          cleanup_policy=policy, consolidation_batch_size=1)
+    kwargs = {'output_config': output} if typed else {'salva_data_update': output.to_dict()}
+    euskera.evolve(MODEL,evolution_config={'resol':4,'gridlength':4.,'tmax':.2}, **kwargs)
     path=tmp_path/f'end_save_line_rho.{fmt}'
     archive=np.load(path) if fmt=='npz' else h5py.File(path)
     with archive as data:

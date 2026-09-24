@@ -6,9 +6,12 @@ import glob
 import zipfile
 import numpy as np
 
+from .consolidation import consolidate, validate_cleanup
+
 ########### Save data
 #############################################################################
-def data_Objgenerator(data_save, address, format, comp_conserv=None):
+def data_Objgenerator(data_save, address, format, comp_conserv=None,
+                      cleanup_policy="after_success", consolidation_batch_size=16):
     """
     Generates a dictionary of StoreSolution objects for enabled data saving options.
 
@@ -17,12 +20,15 @@ def data_Objgenerator(data_save, address, format, comp_conserv=None):
     - address (str): Directory where data will be stored.
     - format (str): File format (e.g., "npz", "hdf5").
     - comp_conserv (dict, optional): Diagnostic flags in Conserv output order.
+    - cleanup_policy: "after_success" (default) or riskier "incremental" cleanup.
+    - consolidation_batch_size: Positive source-file count per verified batch.
 
     Returns:
     - dict: Dictionary with keys as data types and values as StoreSolution objects.
     """
     data_save_obj = {
                     name: StoreSolution(address=address, filename=name, format=format,
+                        cleanup_policy=cleanup_policy, consolidation_batch_size=consolidation_batch_size,
                         diagnostic_names=None if comp_conserv is None else [
                             key for key, enabled in comp_conserv.items()
                             if enabled and key in ("Numb_Part", "Energ", "Pi", "Frequency")])
@@ -101,70 +107,26 @@ def nameData(address, file_format, info=True):
         print(f"Found {count} files with the .{file_format} extension.")
     return DataName
 
-def JoinFilesInOneZip(file_list, output_zip):
+def JoinFilesInOneZip(file_list, output_zip, cleanup_policy="after_success", consolidation_batch_size=16):
+    """Consolidate NPZ snapshots; retain sources until publication by default.
+
+    Incremental cleanup deletes verified batches before publication and can lose
+    data if the partial archive is corrupted. Retry with the same output/policy.
     """
-    Uniendo todos los archivos en un .zip
+    consolidate(file_list, output_zip, "npz", cleanup_policy, consolidation_batch_size)
 
-    IN:
-    output_zip -> nombre que daremos al .zip
-    file_list -> lista o tupla de datos, o dirección donde encontraremos los datos
 
-    Out:
-    Crea un archivo: archive_name.zip
-    """
-
-    # identificando los archivos a comprimir
-    if isinstance(file_list, (list, tuple)):
-        filenames = file_list
-    elif isinstance(file_list, str):
-        filenames = glob.glob(file_list)
-
-    with zipfile.ZipFile(output_zip, mode='w', compression=zipfile.ZIP_DEFLATED, allowZip64=True) as archive:
-        for filename in filenames:
-            with zipfile.ZipFile(filename, mode='r') as f:
-                for name in f.namelist():
-                    # Save under name without .npy
-                    archive.writestr(name[:-4], f.read(name))  # leer y escribir directamente
-
-            # Remove original files
-            os.remove(filename)
-
-def JoinFilesInOneHDF5(file_list, output_hdf5):
-    """
-    Uniendo todos los archivos HDF5 en un unico archivo HDF5.
-
-    Unlike .npz, HDF5 files are not zip archives, so they cannot be merged
-    with zipfile. Each dataset is copied into a single consolidated file.
-
-    IN:
-    output_hdf5 -> nombre del archivo HDF5 final
-    file_list -> lista o tupla de archivos .h5, o patron para localizarlos
-
-    Out:
-    Crea un archivo: output_hdf5 con todos los datasets de los archivos originales.
-    """
-
-    # identificando los archivos a combinar
-    if isinstance(file_list, (list, tuple)):
-        filenames = file_list
-    elif isinstance(file_list, str):
-        filenames = glob.glob(file_list)
-
-    with h5py.File(output_hdf5, mode='w') as archive:
-        for filename in filenames:
-            with h5py.File(filename, mode='r') as f:
-                for name in f.keys():
-                    f.copy(name, archive)
-
-            # Remove original files
-            os.remove(filename)
+def JoinFilesInOneHDF5(file_list, output_hdf5, cleanup_policy="after_success", consolidation_batch_size=16):
+    """Consolidate HDF5 snapshots using the same cleanup policies as NPZ."""
+    consolidate(file_list, output_hdf5, "hdf5", cleanup_policy, consolidation_batch_size)
 
 class StoreSolution:
     """
     Class to save the results.
     """
 
-    def __init__(self, address, filename, format="npz", info=False, diagnostic_names=None):
+    def __init__(self, address, filename, format="npz", info=False, diagnostic_names=None,
+                 cleanup_policy="after_success", consolidation_batch_size=16):
         """
         Initialize the storage class.
 
@@ -175,9 +137,16 @@ class StoreSolution:
         - info (bool): Print information about file saving.
         - diagnostic_names: Enabled Conserv names in output order. Required
           for HDF5 save_energies; ignored for NPZ and numeric field datasets.
+        - cleanup_policy: Delete sources after publication ("after_success") or
+          after each verified batch ("incremental", with a data-loss risk).
+        - consolidation_batch_size: Positive source-file count per batch.
         """
         if info:
             print(f"Using address: {address}, Filename: {filename}, Format: {format}")
+
+        validate_cleanup(cleanup_policy, consolidation_batch_size)
+        self.cleanup_policy = cleanup_policy
+        self.consolidation_batch_size = consolidation_batch_size
 
         # Instance attributes
         self.address = address
@@ -241,12 +210,25 @@ class StoreSolution:
 
     def close_file(self, zip_name):
         """
-        Combine all .npz files into a single archive.
+        Combine snapshots into one verified NPZ or HDF5 archive.
 
         Parameters:
         - zip_name (str): Name of the final zip archive (without extension).
         """
         if self.address is not None:
+            archive_name = os.path.join(self.address, f"{zip_name}.{self.format}")
+            # Recovery must use the original metadata, including physical times.
+            journal = os.path.realpath(archive_name) + ".consolidation.json"
+            if os.path.exists(journal):
+                consolidate([], archive_name, self.format, self.cleanup_policy,
+                            self.consolidation_batch_size)
+                return
+            file_extension = "*.npz" if self.format == "npz" else "*.h5"
+            pattern = os.path.join(self.address, f"{self.name}_*{file_extension}")
+            # A repeated close after successful cleanup must not replace data
+            # with an archive containing only newly generated time metadata.
+            if os.path.exists(archive_name) and not glob.glob(pattern):
+                return
             times = {"t": np.array(self.time, dtype=float),
                      "snapshot_index": np.array(self.time, dtype=int)}
             if self.physical_time and all(t is not None for t in self.physical_time):
@@ -260,15 +242,13 @@ class StoreSolution:
                         f.create_dataset(key, data=value)
 
             # Find all files of the selected format
-            file_extension = "*.npz" if self.format == "npz" else "*.h5"
-            filenames = glob.glob(os.path.join(self.address, f"{self.name}_*{file_extension}"))
+            filenames = glob.glob(pattern)
 
             # Archive files
-            archive_name = os.path.join(self.address, f"{zip_name}.{self.format}")
             if self.format == "npz":
-                JoinFilesInOneZip(filenames, archive_name)
+                JoinFilesInOneZip(filenames, archive_name, self.cleanup_policy, self.consolidation_batch_size)
             else:
-                JoinFilesInOneHDF5(filenames, archive_name)
+                JoinFilesInOneHDF5(filenames, archive_name, self.cleanup_policy, self.consolidation_batch_size)
 
 
 def _diagnostic_datasets(data, names):

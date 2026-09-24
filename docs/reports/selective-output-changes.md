@@ -1,5 +1,7 @@
 # Implementation report: selective output
 
+Historical report: see [repository reconciliation](reconciliation.md) for the subsequently integrated recoverable consolidation.
+
 Date: 2026-09-24. Documentation and newly added notebook content have been translated into English.
 
 ## Result

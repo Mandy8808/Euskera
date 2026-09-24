@@ -40,3 +40,9 @@
 - Independent diagnostic calendars, potential half-step synchronization, and preserved global indices.
 - NPZ/HDF5 reading and plots with coordinates, orientation, and physical time; data_save compatibility.
 - Selective output guide and notebooks, numerical tests, and a change report.
+
+## Consolidation integration (unreleased)
+
+- Integrated recoverable NPZ/HDF5 consolidation with after-success and incremental cleanup.
+- Applied cleanup options to legacy and selective output, preserving original sample times during recovery.
+- Fixed serialized output rules in legacy configuration, broken profile documentation links, and CI workflow-notebook LFS downloads.

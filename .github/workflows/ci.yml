@@ -61,6 +61,8 @@ jobs:
       - run: python -m pip install ".[test,notebooks,fftw]"
       - name: Analytic checks with both FFT backends
         run: python -m pytest tests/test_scientific_regressions.py -q
+      - name: Download workflow notebooks from Git LFS
+        run: git lfs pull --include="examples/workflows/*.ipynb" --exclude=""
       - name: Execute workflow notebooks
         run: python scripts/run_notebook_smoke.py --output-dir notebook-results
       - uses: actions/upload-artifact@v4

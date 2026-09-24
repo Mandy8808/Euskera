@@ -74,6 +74,8 @@ def evolve(model_parameters,
         "format": "npz",
         "address": "Data",
         "save_number": 10,
+        "cleanup_policy": "after_success",
+        "consolidation_batch_size": 16,
         "data_save" : {
             "grid": True,
             #
@@ -207,7 +209,9 @@ def evolve(model_parameters,
     to.save_parameters(model_parameters, simulation_parameters, salva_data, comp_conserv, save_name="parameters")
     write_run_metadata(address, model_parameters, simulation_parameters, salva_data,
                        comp_conserv, field_components, "pyfftw" if pyfftwOpt else "numpy", ht, num_steps)
-    data_save_obj = (sv.data_Objgenerator(data_save, address, formt, comp_conserv=comp_conserv)
+    data_save_obj = (sv.data_Objgenerator(data_save, address, formt, comp_conserv=comp_conserv,
+                         cleanup_policy=salva_data["cleanup_policy"],
+                         consolidation_batch_size=salva_data["consolidation_batch_size"])
                      if output_schedule is None else {})
 
     ########################## Saving

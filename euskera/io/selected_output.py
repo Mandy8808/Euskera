@@ -42,14 +42,16 @@ class OutputSchedule:
         self.center = {axis: int(np.argmin(abs(values))) for axis, values in self.axes.items()}
         path = Path(self.config.address)
         path.mkdir(parents=True, exist_ok=True)
-        grid_writer = StoreSolution(str(path), "grid", self.config.format)
+        options = dict(cleanup_policy=self.config.cleanup_policy,
+                       consolidation_batch_size=self.config.consolidation_batch_size)
+        grid_writer = StoreSolution(str(path), "grid", self.config.format, **options)
         grid_writer.save_file(list(self.axes.values()), ti=None)
         grid_writer.close_file("end_grid")
         metadata = {"schema_version": 1, "streams": {}}
         for name, stream in self.streams.items():
             diag = stream["geometry"] == "diagnostics"
             stream["writer"] = StoreSolution(str(path), name, self.config.format,
-                diagnostic_names=[stream["variable"]] if diag else None)
+                diagnostic_names=[stream["variable"]] if diag else None, **options)
             axes = "" if diag else stream["orientation"] or "xyz"
             metadata["streams"][name] = {
                 "geometry": stream["geometry"], "variable": stream["variable"],

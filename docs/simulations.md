@@ -156,3 +156,83 @@ NPZ and HDF5 snapshots both retain `t` and add `snapshot_index` and `time`.
 ## Output by variable, geometry, and time
 
 See [selective output](selective-output.md) for `SaveRule`, `All`, `Last`, `TimeRange`, `Final`, independent diagnostics, all three planes and axes, and reading actual coordinates.
+
+## Consolidation and disk space
+
+Both NPZ and HDF5 save snapshots first and consolidate them at the end into
+one physical archive **per enabled output**, such as `end_save_rho.npz` or
+`end_save_rho.hdf5`. Choose when to delete the snapshots:
+
+```python
+output = OutputConfig(
+    address="runs/my_experiment",
+    format="npz",                         # or "hdf5"
+    cleanup_policy="after_success",       # default; or "incremental"
+    consolidation_batch_size=16,          # positive number of source files
+)
+```
+
+| Policy | Snapshot deletion | Disk-space tradeoff |
+| --- | --- | --- |
+| `after_success` (default) | After the complete archive is closed, verified and published | Originals and the complete new archive coexist. |
+| `incremental` | After each batch is closed, reopened, verified and recorded | Only pending originals coexist with the growing archive; corruption can lose data whose originals were deleted. |
+
+Incremental cleanup emits a `RuntimeWarning` about this risk. The batch size
+counts source files, including grid/time metadata where applicable, not bytes.
+Smaller batches release space earlier but require more close/verify/journal
+operations. It does not set a fixed disk-space limit.
+
+For one consolidation, let **S** be the original files' total size, **N** the
+new archive size, and **A** an existing destination's size (zero if absent).
+The default policy peaks near **S + N + A**, plus small journal and filesystem
+overheads: about **N** additional free space is needed. Incremental usage is
+approximately **pending originals + growing archive + A**; the current batch
+remains on disk until verified. Compression means these sizes need not match.
+NPZ consolidation uses DEFLATE; this HDF5 path does not enable compression.
+Other simulation outputs also occupy disk independently of these quantities.
+
+The new archive is built in a uniquely named `.consolidation-*.partial` file
+beside the destination. Publication renames it on the same filesystem, without
+another full copy. An existing final archive is kept until replacement. Content
+checksums are compared after copying, and the whole archive is verified before
+publication. Verification adds reads, not another complete on-disk copy.
+
+The same settings work in legacy `salva_data_update` dictionaries, in
+`StoreSolution(..., cleanup_policy=..., consolidation_batch_size=...)`, and in
+`JoinFilesInOneZip` / `JoinFilesInOneHDF5` from `euskera.io.save_data`.
+
+### Retrying an interrupted consolidation
+
+On failure, retain the remaining snapshots, the hidden partial archive, and
+`<destination>.consolidation.json`. The journal records the original source
+list, verified batches and content checksums. Retry `close_file` using the
+same destination and cleanup policy; do not rerun the simulation or rewrite
+snapshots. A new store can resume without losing the saved physical times:
+
+```python
+from euskera.io import StoreSolution
+
+store = StoreSolution(
+    "runs/my_experiment", "save_rho", format="npz",  # or "hdf5"
+    cleanup_policy="incremental",                  # match the failed attempt
+)
+store.close_file("end_save_rho")
+```
+
+For the low-level functions, pass the original list/pattern, or `[]` when a
+journal exists, and the same output path and policy. Recovery verifies completed
+data, avoids duplicate members, and can finish interrupted cleanup after
+publication. Changed sources are not deleted. After success, the journal and
+partial name disappear, leaving the final archive.
+
+Recovery requires a readable partial archive. A kill or power failure during
+an active ZIP/HDF5 write may corrupt it; the journal is not a backup and cannot
+repair this. A failed recovery stops without deleting further originals. With
+`after_success`, a failure before publication leaves all originals available
+for a fresh consolidation. With `incremental`, previously deleted originals
+may be unrecoverable. Files and journals are synchronized before cleanup, with
+directory synchronization on POSIX, but storage/filesystem durability still
+applies. Use a single writer per output and do not modify sources during
+consolidation. These policies protect consolidation, not snapshot writes during
+the simulation itself.
+

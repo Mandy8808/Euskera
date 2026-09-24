@@ -3,6 +3,7 @@
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Mapping
 from .schedule import SaveRule
+from .consolidation import validate_cleanup
 
 __all__ = ["OutputConfig"]
 
@@ -23,8 +24,11 @@ class OutputConfig:
     data_save: dict[str, bool] = field(default_factory=lambda: dict(_DEFAULT_DATA_SAVE))
     copy_profiles: bool = False
     rules: list[SaveRule] | None = None
+    cleanup_policy: str = "after_success"
+    consolidation_batch_size: int = 16
 
     def __post_init__(self) -> None:
+        validate_cleanup(self.cleanup_policy, self.consolidation_batch_size)
         if self.rules is not None:
             if not isinstance(self.rules, (list, tuple)):
                 raise TypeError("rules must be a sequence of SaveRule objects")

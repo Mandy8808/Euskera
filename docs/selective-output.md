@@ -108,3 +108,7 @@ New selected outputs use explicit names such as `plane_yz_phi` and require `read
 The [selective_output.ipynb](../examples/workflows/selective_output.ipynb) notebook executes a small case, compares a plane with its volume slice, reads energy, and plots outputs. Simulation notebooks include an optional section before evolution; they initially retain the old mode so their existing analysis cells continue to work.
 
 Tests cover both formats, all orientations and variables, complex components, independent times, empty and overlapping selections, and numerical equivalence between complete and partial output.
+
+## Recoverable consolidation
+
+`cleanup_policy="after_success"` and `consolidation_batch_size=16` apply to every writer, including the grid, selected fields, and diagnostics. They are independent of `SaveRule` temporal selections. See [consolidation and recovery](simulations.md#consolidation-and-disk-space) for disk requirements, incremental cleanup, and retry instructions. For a selected output, use its actual stream name when retrying, for example `StoreSolution(address, "volume_psi", format="hdf5").close_file("end_volume_psi")`. Match the original cleanup policy. Do not rerun evolution into an interrupted output directory.

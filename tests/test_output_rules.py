@@ -119,3 +119,35 @@ def test_animation_aligns_sparse_streams(monkeypatch):
     assert list(result['frames']) == [0]
     assert captured['line'][2] == captured['plane'][1] == .4
     np.testing.assert_array_equal(captured['line'][0], line['line4'])
+
+
+@pytest.mark.parametrize('fmt', ['npz', 'hdf5'])
+@pytest.mark.parametrize('policy', ['after_success', 'incremental'])
+def test_selected_output_recovery_preserves_samples(tmp_path, monkeypatch, fmt, policy):
+    from euskera.io import consolidation
+    config = OutputConfig(address=str(tmp_path), format=fmt, save_number=1,
+                          cleanup_policy=policy, consolidation_batch_size=1,
+                          rules=[SaveRule('volume', ['psi'], selection=Final())])
+    schedule = OutputSchedule(config, 1., {})
+    schedule.prepare([np.arange(2)]*3)
+    writer = schedule.streams['volume_psi']['writer']
+    assert writer.cleanup_policy == policy
+    assert writer.consolidation_batch_size == 1
+    field = np.ones((1,2,2,2), dtype=complex) * (1+2j)
+    schedule.save(schedule.outputs_at(1,1.), 1,1.,field[0].real,field,field[0].real,{})
+    original_replace = consolidation.os.replace
+    final = str(tmp_path / f'end_volume_psi.{fmt}')
+    def fail_publish(source, destination):
+        if str(destination) == final:
+            raise OSError('simulated publication failure')
+        return original_replace(source, destination)
+    monkeypatch.setattr(consolidation.os, 'replace', fail_publish)
+    with pytest.raises(OSError, match='publication failure'):
+        schedule.close()
+    assert (tmp_path / f'end_volume_psi.{fmt}.consolidation.json').exists()
+    monkeypatch.setattr(consolidation.os, 'replace', original_replace)
+    schedule.close()
+    result = read_output(tmp_path, 'volume_psi')
+    np.testing.assert_array_equal(result['snapshot_index'], [1])
+    np.testing.assert_array_equal(result['time'], [1.])
+    np.testing.assert_array_equal(result['data'][0], field)

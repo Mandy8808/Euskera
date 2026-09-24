@@ -11,6 +11,6 @@ Open the notebook corresponding to the configuration you want to generate:
 - [Multifrequency](../examples/backgrounds/example_making_initial_profile_multifrequency.ipynb) — multifield configuration solved using a shooting method followed by boundary fitting.
 - [Self-interaction](../examples/backgrounds/example_making_initial_profile_selfinteraction.ipynb) — soliton configuration including a self-interaction term, $\lambda \neq 0$.
 
-For details on the underlying equations and background configurations, see [Background solutions](../../docs/theory/background-solutions.md).
+For details on the underlying equations and background configurations, see [Background solutions](../docs/theory/background-solutions.md).
 
-For details on the boundary-fitting procedure used in the multifrequency case, see [Background fitting workflow](../../docs/workflows/background-fitting.md).
+For details on the boundary-fitting procedure used in the multifrequency case, see [Background fitting workflow](../docs/workflows/background-fitting.md).
