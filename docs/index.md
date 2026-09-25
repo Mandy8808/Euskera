@@ -31,6 +31,8 @@ shortest possible example. This index groups the longer guides by task.
   radial background families from arXiv:2412.06901.
 - [Spectral method](theory/spectral-method.md): Chebyshev discretisation and
   stability analysis from arXiv:2512.04376.
+- [Spectral stability notebook](../examples/spectral/example_SprectralStability_proca.ipynb):
+  executable Proca background spectrum example.
 - [Boundary-value method](methods/boundary-value-method.md): numerical
   parameter correction from arXiv:2208.13221.
 
