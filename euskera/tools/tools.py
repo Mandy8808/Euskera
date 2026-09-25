@@ -232,7 +232,8 @@ def progressbar(current_value, total_value, bar_length=20, progress_char='#'):
     :param progress_char: Character used to fill the progress bar.
     """
     if total_value == 0:
-        print("Error: total_value cannot be 0")
+        print("[####################] 100%", end='\r')
+        # print("Error: total_value cannot be 0")
         return
     
     # Calculate the percentage and progress

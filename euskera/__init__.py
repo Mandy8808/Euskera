@@ -79,7 +79,8 @@ __all__ = [
     'proca_Model', 'build_proca', 'compute_polarization_vec', 'initproca_kernel',
 
     # Workflow namespaces
-    'backgrounds', 'core', 'evolution', 'io', 'observables',
+    'backgrounds', 'spectral',
+    'core', 'evolution', 'io', 'observables',
     'visualization',
     'EvolutionConfig', 'OutputConfig', 'DiagnosticsConfig',
 ]

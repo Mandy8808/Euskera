@@ -5,7 +5,7 @@ from scipy.linalg import block_diag, eigvals
 from scipy.optimize import linear_sum_assignment
 from euskera.core.grids import KGrid
 from euskera.observables.simulation_conserv_quant import kintE, Pi, centpotetE, selfinterCondensateE
-from euskera.spectral import espectro, backgroundOper
+from euskera.spectral import spectrum, backgroundOper
 from euskera.spectral.blocks import linBlock
 
 @pytest.fixture(params=['numpy', 'pyfftw'])
@@ -49,7 +49,7 @@ def test_linear_spectrum_contains_all_three_sectors():
     sigma,u,inv,_,d2,_,scale=backgroundOper(functions,util,couplings,0)
     m11,_,_,m22,m33=linBlock(6,sigma,u,inv,d2,couplings,scale)
     expected=1j*eigvals(block_diag(m11,m22,m33))
-    actual=espectro(functions,util,couplings,0,'linear')[0]
+    actual=spectrum(functions,util,couplings,0,'linear')[0]
     costs=abs(actual[:,None]-expected[None,:])
     rows,cols=linear_sum_assignment(costs)
     np.testing.assert_allclose(actual[rows],expected[cols],atol=1e-9,rtol=1e-10)

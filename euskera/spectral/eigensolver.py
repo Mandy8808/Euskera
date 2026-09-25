@@ -8,13 +8,56 @@ from .operators import backgroundOper
 from .blocks import linBlock, circBlock, radBlock, multBlock
 from euskera.tools.tools import progressbar
 
-def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
+def _eigenvalue_residuals(operator, eigenvalues, eigenvectors, atol=1e-08):
+   r"""Computes per-mode residual diagnostics for the eigenproblem $Mv=\mu v$.
+
+   This is the vectorized, quantitative counterpart of the previous
+   ``np.allclose(M @ v_i - mu_i * v_i, 0)`` check: since the check compares
+   against zero, only ``atol`` matters (the ``rtol`` term multiplies zero),
+   so ``allclose`` below reproduces that exact boolean per mode.
+
+   Returns a dict with:
+   - "allclose": boolean array, one value per mode (same rule as before).
+   - "absolute_residuals": $\|Mv_i-\mu_i v_i\|_2$ per mode.
+   - "relative_residuals": absolute residual scaled by $\|v_i\|_2$.
+   - "scaled_residuals": relative residual additionally scaled by $\|M\|_2$,
+     useful to compare residuals across different problem sizes.
+   """
+   residual_vectors = operator @ eigenvectors - eigenvectors * eigenvalues[np.newaxis, :]
+   absolute_residuals = np.linalg.norm(residual_vectors, axis=0)
+   vector_norms = np.linalg.norm(eigenvectors, axis=0)
+
+   relative_residuals = np.divide(
+      absolute_residuals, vector_norms,
+      out=np.full_like(absolute_residuals, np.inf), where=vector_norms != 0,
+   )
+
+   operator_norm = np.linalg.norm(operator, ord=2)
+   scaled_residuals = np.divide(
+      relative_residuals, operator_norm,
+      out=np.full_like(relative_residuals, np.inf), where=operator_norm != 0,
+   )
+
+   allclose = np.all(np.abs(residual_vectors) <= atol, axis=0)
+
+   return {
+      "allclose": allclose,
+      "absolute_residuals": absolute_residuals,
+      "relative_residuals": relative_residuals,
+      "scaled_residuals": scaled_residuals,
+   }
+
+def spectrum(datFunc, util, lamV, alp, polariz, info=False, fplot=False, diagnostics=False):
    r"""Computes the spectrum of a system.
 
    Type of polarizations:
    i. $\gamma=0$, $\alpha=0$ if the polarization is linear,
    ii. $\gamma=0$, $\alpha=1$ if the polarization is circular, and
    iii. $\gamma=1$, $\alpha=0$ if the polarization is radial.
+
+   If ``diagnostics`` is True, an extra dict of residual diagnostics for the
+   eigenproblem $Mv=\mu v$ (see :func:`_eigenvalue_residuals`) is returned as
+   a fifth element, sorted to match ``LambdaSorted``/``eig_vectors_sorted``.
    """
    ############################################################################
    # Cheking the in put parameters:
@@ -44,6 +87,8 @@ def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
       raise ValueError("info should be a boolean value.")
    if not isinstance(fplot, bool):
       raise ValueError("fplot should be a boolean value.")
+   if not isinstance(diagnostics, bool):
+      raise ValueError("diagnostics should be a boolean value.")
    ############################################################################
 
    # Global variables
@@ -94,16 +139,15 @@ def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
 
    # Compute eigenvalues and eigenvectors using scipy.linalg.eig
    # Mij@X = lambda X
-   # print("===> ", np.sum(OM_chev), "size ", OM_chev.shape)
    eig_values, eig_vectors = eig(OM_chev)
 
-   # Verify eigenvalues and eigenvectors if info is True
+   # Verify eigenvalues and eigenvectors, and quantify residuals if requested.
    # Valify that the system Ax=Lx
-   if info:
-      test = [np.allclose(OM_chev @ eig_vectors[:, i] - (eig_values[i] * eig_vectors[:, i]),
-                          np.zeros((2 * num * (Nptos - 1)), dtype=complex))
-              for i in range(len(eig_values))]
-      print("Verifying that Ax = λx holds ->\n", np.array(test))
+   residual_diagnostics = None
+   if diagnostics:
+      residual_diagnostics = _eigenvalue_residuals(OM_chev, eig_values, eig_vectors)
+      if info:
+         print("Verifying that Ax = λx holds ->\n", residual_diagnostics["allclose"])
 
    # Compute the real Lambda values
    Lambda = 1j * eig_values  # Lambda = -i LambdaReal -> LambdaReal = i Lambda
@@ -113,22 +157,38 @@ def espectro(datFunc, util, lamV, alp, polariz, info=False, fplot=False):
    LambdaSorted = Lambda[sorted_indices]
    eig_vectors_sorted = eig_vectors[:, sorted_indices]
 
+   if diagnostics:
+      residual_diagnostics = {
+         key: value[sorted_indices] for key, value in residual_diagnostics.items()
+      }
+      return LambdaSorted, Lambda, eig_vectors_sorted, r_dis2, residual_diagnostics
+
    return LambdaSorted, Lambda, eig_vectors_sorted, r_dis2
 
 def LamJval(datFunc, rMax, lamV, alp, polariz,
             Nptos=500, Jval=[0, 1, 2, 3], real=True,
-            info=False, fplot=False):
+            info=False, fplot=False, diagnostics=False):
   """
-  Computing the spectro for a set of J-values
+  Computing the spectro for a set of J-values.
+
+  If ``diagnostics`` is True, a third element ``diagnosticsExtra`` is
+  returned alongside ``lambdaVal`` and ``dataExtra``: a list of
+  ``[J, residual_diagnostics]`` pairs (see :func:`_eigenvalue_residuals`),
+  filtered/ordered to match the eigenvalues and eigenvectors in ``dataExtra``.
   """
   if info:
     print('Computing the spectro for the polarizacion ', polariz)
 
   # Spectro
   lambdaVal, dataExtra = [], []
+  diagnosticsExtra = [] if diagnostics else None
   for ind, J in enumerate(Jval):
      util = [J, Nptos, rMax]
-     LambdaSorted, _, eig_vectors_sorted, r_dis2 = espectro(datFunc, util, lamV, alp, polariz, info=info, fplot=fplot)
+     result = spectrum(datFunc, util, lamV, alp, polariz, info=info, fplot=fplot, diagnostics=diagnostics)
+     if diagnostics:
+        LambdaSorted, _, eig_vectors_sorted, r_dis2, residual_diagnostics = result
+     else:
+        LambdaSorted, _, eig_vectors_sorted, r_dis2 = result
 
      if real:
          jj = np.real(LambdaSorted) != 0  # reales
@@ -136,9 +196,18 @@ def LamJval(datFunc, rMax, lamV, alp, polariz,
          vectReal = eig_vectors_sorted[:, jj]
          lambdaVal.append([J, lambReal])
          dataExtra.append([J, [r_dis2, lambReal, vectReal]])
+         if diagnostics:
+            diagnosticsExtra.append([J, {
+               key: value[jj] for key, value in residual_diagnostics.items()
+            }])
      else:
          lambdaVal.append([J, LambdaSorted])
          dataExtra.append([J, [r_dis2, LambdaSorted, eig_vectors_sorted]])
+         if diagnostics:
+            diagnosticsExtra.append([J, residual_diagnostics])
 
      progressbar(ind, len(Jval)-1)
+
+  if diagnostics:
+     return lambdaVal, dataExtra, diagnosticsExtra
   return lambdaVal, dataExtra

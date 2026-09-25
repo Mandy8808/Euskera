@@ -40,7 +40,7 @@ flowchart LR
 The public numerical entry points are:
 
 ```python
-from euskera.spectral import LamJval, backgroundOper, cheb, espectro
+from euskera.spectral import LamJval, backgroundOper, cheb, spectrum
 ```
 
 ## Interpretation
