@@ -31,8 +31,12 @@ shortest possible example. This index groups the longer guides by task.
   radial background families from arXiv:2412.06901.
 - [Spectral method](theory/spectral-method.md): Chebyshev discretisation and
   stability analysis from arXiv:2512.04376.
-- [Spectral stability notebook](../examples/spectral/example_SprectralStability_proca.ipynb):
-  executable Proca background spectrum example.
+- [Spectral stability notebook](../examples/spectral/example_SpectralStability_proca.ipynb):
+  executable linear-polarization Proca background spectrum example.
+- [Spectral stability notebook (radial)](../examples/spectral/example_SpectralStability_proca_radial.ipynb):
+  same workflow for a radial-polarization background.
+- [Spectral stability notebook (multifrequency)](../examples/spectral/example_SpectralStability_proca_multifrequency.ipynb):
+  same workflow for a multifrequency-polarization background (three Cartesian components).
 - [Boundary-value method](methods/boundary-value-method.md): numerical
   parameter correction from arXiv:2208.13221.
 
